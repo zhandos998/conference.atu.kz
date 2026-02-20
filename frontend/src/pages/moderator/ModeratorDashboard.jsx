@@ -18,8 +18,10 @@ const statusLabel = {
 
 const isImagePath = (path) => /\.(jpg|jpeg|png|gif|webp)$/i.test(path || '');
 const isPdfPath = (path) => /\.pdf$/i.test(path || '');
-const toReceiptUrl = (path) => `http://localhost:8000/storage/${path}`;
-const toReportFileUrl = (path) => `http://localhost:8000/storage/${path}`;
+const apiBaseUrl = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
+const apiOrigin = new URL(apiBaseUrl, window.location.origin).origin;
+const toReceiptUrl = (path) => `${apiOrigin}/storage/${path}`;
+const toReportFileUrl = (path) => `${apiOrigin}/storage/${path}`;
 
 export default function ModeratorDashboard({ onLogout }) {
   const [status, setStatus] = useState('');

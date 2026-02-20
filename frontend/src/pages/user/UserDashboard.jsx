@@ -49,7 +49,9 @@ const toForm = (application) => ({
   file: null,
 });
 
-const toReportFileUrl = (path) => `http://localhost:8000/storage/${path}`;
+const apiBaseUrl = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
+const apiOrigin = new URL(apiBaseUrl, window.location.origin).origin;
+const toReportFileUrl = (path) => `${apiOrigin}/storage/${path}`;
 
 export default function UserDashboard({ onLogout }) {
   const [applications, setApplications] = useState([]);
