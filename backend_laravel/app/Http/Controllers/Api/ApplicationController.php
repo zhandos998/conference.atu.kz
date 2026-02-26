@@ -22,12 +22,6 @@ class ApplicationController extends Controller
 
     public function store(StoreApplicationRequest $request)
     {
-        if ($request->user()->applications()->exists()) {
-            return response()->json([
-                'message' => 'Вы уже отправили заявку. Разрешена только одна заявка на пользователя.',
-            ], 422);
-        }
-
         $filePath = null;
         if ($request->hasFile('file')) {
             $filePath = $request->file('file')->store('applications', 'public');
@@ -76,7 +70,7 @@ class ApplicationController extends Controller
         $request->user()->notify(new ApplicationSubmittedNotification($application, true));
 
         return response()->json([
-            'message' => 'Заявка обновлена и отправлена на повторное рассмотрение.',
+            'message' => 'Р—Р°СЏРІРєР° РѕР±РЅРѕРІР»РµРЅР° Рё РѕС‚РїСЂР°РІР»РµРЅР° РЅР° РїРѕРІС‚РѕСЂРЅРѕРµ СЂР°СЃСЃРјРѕС‚СЂРµРЅРёРµ.',
             'application' => $application->fresh(),
         ]);
     }
@@ -98,7 +92,7 @@ class ApplicationController extends Controller
 
         if ($application->status !== Application::STATUS_ACCEPTED) {
             return response()->json([
-                'message' => 'Загрузка чека доступна только для принятых докладов.',
+                'message' => 'Р—Р°РіСЂСѓР·РєР° С‡РµРєР° РґРѕСЃС‚СѓРїРЅР° С‚РѕР»СЊРєРѕ РґР»СЏ РїСЂРёРЅСЏС‚С‹С… РґРѕРєР»Р°РґРѕРІ.',
             ], 422);
         }
 
@@ -111,7 +105,7 @@ class ApplicationController extends Controller
         $application->update(['payment_receipt_path' => $path]);
 
         return response()->json([
-            'message' => 'Чек успешно загружен.',
+            'message' => 'Р§РµРє СѓСЃРїРµС€РЅРѕ Р·Р°РіСЂСѓР¶РµРЅ.',
             'application' => $application->fresh(),
         ]);
     }
@@ -121,11 +115,11 @@ class ApplicationController extends Controller
         $this->authorize('view', $application);
 
         if (! $application->payment_receipt_path) {
-            return response()->json(['message' => 'Чек не загружен.'], 404);
+            return response()->json(['message' => 'Р§РµРє РЅРµ Р·Р°РіСЂСѓР¶РµРЅ.'], 404);
         }
 
         if (! Storage::disk('public')->exists($application->payment_receipt_path)) {
-            return response()->json(['message' => 'Файл чека не найден.'], 404);
+            return response()->json(['message' => 'Р¤Р°Р№Р» С‡РµРєР° РЅРµ РЅР°Р№РґРµРЅ.'], 404);
         }
 
         $absolutePath = Storage::disk('public')->path($application->payment_receipt_path);

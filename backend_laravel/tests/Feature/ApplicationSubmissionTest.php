@@ -17,22 +17,22 @@ class ApplicationSubmissionTest extends TestCase
     private function payload(): array
     {
         return [
-            'full_name' => 'Иван Иванов',
-            'organization_position' => 'АТУ, студент',
-            'academic_degree' => 'бакалавр',
+            'full_name' => 'РРІР°РЅ РРІР°РЅРѕРІ',
+            'organization_position' => 'РђРўРЈ, СЃС‚СѓРґРµРЅС‚',
+            'academic_degree' => 'Р±Р°РєР°Р»Р°РІСЂ',
             'phone' => '+77010000000',
             'email' => 'ivan@example.com',
-            'supervisor_full_name' => 'Петров Петр Петрович',
-            'supervisor_organization_position' => 'АТУ, доцент',
-            'supervisor_academic_degree' => 'к.т.н.',
-            'report_title' => 'Исследование технологий',
-            'direction' => 'Технологии пищевой промышленности',
-            'participation_form' => 'Очно',
+            'supervisor_full_name' => 'РџРµС‚СЂРѕРІ РџРµС‚СЂ РџРµС‚СЂРѕРІРёС‡',
+            'supervisor_organization_position' => 'РђРўРЈ, РґРѕС†РµРЅС‚',
+            'supervisor_academic_degree' => 'Рє.С‚.РЅ.',
+            'report_title' => 'РСЃСЃР»РµРґРѕРІР°РЅРёРµ С‚РµС…РЅРѕР»РѕРіРёР№',
+            'direction' => 'РўРµС…РЅРѕР»РѕРіРёРё РїРёС‰РµРІРѕР№ РїСЂРѕРјС‹С€Р»РµРЅРЅРѕСЃС‚Рё',
+            'participation_form' => 'РћС‡РЅРѕ',
             'hotel_booking_needed' => false,
         ];
     }
 
-    public function test_user_can_create_only_one_application(): void
+    public function test_user_can_create_multiple_applications(): void
     {
         $user = User::factory()->create([
             'email_verified_at' => now(),
@@ -44,10 +44,13 @@ class ApplicationSubmissionTest extends TestCase
         $first = $this->post('/api/applications', $this->payload());
         $first->assertCreated();
 
-        $second = $this->post('/api/applications', $this->payload());
-        $second->assertStatus(422);
+        $second = $this->post('/api/applications', array_merge($this->payload(), [
+            'report_title' => 'Второй доклад',
+            'email' => 'ivan.second@example.com',
+        ]));
+        $second->assertCreated();
 
-        $this->assertDatabaseCount('applications', 1);
+        $this->assertDatabaseCount('applications', 2);
     }
 
     public function test_user_sees_only_own_application(): void
@@ -78,20 +81,20 @@ class ApplicationSubmissionTest extends TestCase
         $application = Application::create(array_merge($this->payload(), [
             'user_id' => $user->id,
             'status' => Application::STATUS_REVISION,
-            'moderator_comment' => 'РќСѓР¶РЅРѕ РґРѕСЂР°Р±РѕС‚Р°С‚СЊ РґРѕРєР»Р°Рґ.',
+            'moderator_comment' => 'Р СњРЎС“Р В¶Р Р…Р С• Р Т‘Р С•РЎР‚Р В°Р В±Р С•РЎвЂљР В°РЎвЂљРЎРЉ Р Т‘Р С•Р С”Р В»Р В°Р Т‘.',
         ]));
 
         Sanctum::actingAs($user);
 
         $response = $this->patch('/api/applications/' . $application->id, array_merge($this->payload(), [
-            'report_title' => 'РћР±РЅРѕРІР»РµРЅРЅРѕРµ РЅР°Р·РІР°РЅРёРµ РґРѕРєР»Р°РґР°',
+            'report_title' => 'Р С›Р В±Р Р…Р С•Р Р†Р В»Р ВµР Р…Р Р…Р С•Р Вµ Р Р…Р В°Р В·Р Р†Р В°Р Р…Р С‘Р Вµ Р Т‘Р С•Р С”Р В»Р В°Р Т‘Р В°',
         ]));
 
         $response->assertOk();
 
         $this->assertDatabaseHas('applications', [
             'id' => $application->id,
-            'report_title' => 'РћР±РЅРѕРІР»РµРЅРЅРѕРµ РЅР°Р·РІР°РЅРёРµ РґРѕРєР»Р°РґР°',
+            'report_title' => 'Р С›Р В±Р Р…Р С•Р Р†Р В»Р ВµР Р…Р Р…Р С•Р Вµ Р Р…Р В°Р В·Р Р†Р В°Р Р…Р С‘Р Вµ Р Т‘Р С•Р С”Р В»Р В°Р Т‘Р В°',
             'status' => Application::STATUS_PENDING,
             'moderator_comment' => null,
         ]);
