@@ -3,19 +3,19 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
 use Tests\TestCase;
 
 class AuthFlowTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_register_sends_verification_email(): void
+    public function test_register_creates_user(): void
     {
-        Notification::fake();
-
         $response = $this->postJson('/api/auth/register', [
             'name' => 'Test User',
             'email' => 'user1@example.com',
@@ -24,36 +24,15 @@ class AuthFlowTest extends TestCase
         ]);
 
         $response->assertCreated();
-
-        $user = User::where('email', 'user1@example.com')->firstOrFail();
-        Notification::assertSentTo($user, VerifyEmail::class);
+        $this->assertDatabaseHas('users', ['email' => 'user1@example.com']);
     }
 
-    public function test_unverified_user_cannot_login(): void
+    public function test_user_can_login_without_email_verification(): void
     {
         $user = User::factory()->unverified()->create([
-            'email' => 'unverified@example.com',
+            'email' => 'user@example.com',
             'password' => 'password123',
             'role' => 'user',
-        ]);
-
-        $response = $this->postJson('/api/auth/login', [
-            'email' => $user->email,
-            'password' => 'password123',
-        ]);
-
-        $response
-            ->assertStatus(403)
-            ->assertJsonPath('message', 'Требуется подтверждение email.');
-    }
-
-    public function test_verified_user_can_login_and_get_token(): void
-    {
-        $user = User::factory()->create([
-            'email' => 'verified@example.com',
-            'password' => 'password123',
-            'role' => 'user',
-            'email_verified_at' => now(),
         ]);
 
         $response = $this->postJson('/api/auth/login', [
@@ -64,5 +43,41 @@ class AuthFlowTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonStructure(['token', 'user' => ['id', 'email', 'role']]);
+    }
+
+    public function test_user_can_request_password_reset_link(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'user@example.com',
+        ]);
+
+        Notification::fake();
+
+        $response = $this->postJson('/api/auth/forgot-password', [
+            'email' => $user->email,
+        ]);
+
+        $response->assertOk()->assertJsonStructure(['message']);
+        Notification::assertSentTo($user, ResetPassword::class);
+    }
+
+    public function test_user_can_reset_password_with_valid_token(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'user@example.com',
+            'password' => 'old-password-123',
+        ]);
+
+        $token = Password::broker()->createToken($user);
+
+        $response = $this->postJson('/api/auth/reset-password', [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'new-password-123',
+            'password_confirmation' => 'new-password-123',
+        ]);
+
+        $response->assertOk()->assertJsonStructure(['message']);
+        $this->assertTrue(Hash::check('new-password-123', $user->fresh()->password));
     }
 }

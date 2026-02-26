@@ -1,27 +1,45 @@
 ﻿import { useEffect, useState } from 'react';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import UserDashboard from './pages/user/UserDashboard';
 import ModeratorDashboard from './pages/moderator/ModeratorDashboard';
 import api from './api/client';
 
 export default function App() {
-  const [user, setUser] = useState(null);
-  const [mode, setMode] = useState('login');
-  const [loading, setLoading] = useState(true);
-  const [loginInfo, setLoginInfo] = useState('');
+  const searchParams = new URLSearchParams(window.location.search);
+  const isResetMode = searchParams.get('mode') === 'reset-password';
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('verified') === '1') {
-      setMode('login');
-      setLoginInfo('Email успешно подтвержден. Выполните вход.');
-      params.delete('verified');
-      const qs = params.toString();
-      const nextUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}`;
-      window.history.replaceState({}, '', nextUrl);
+  const [user, setUser] = useState(null);
+  const [mode, setMode] = useState(isResetMode ? 'reset-password' : 'login');
+  const [resetData, setResetData] = useState({
+    token: searchParams.get('token') || '',
+    email: searchParams.get('email') || '',
+  });
+  const [loading, setLoading] = useState(true);
+
+  const setAuthMode = (nextMode, payload = {}) => {
+    setMode(nextMode);
+
+    if (nextMode === 'reset-password') {
+      const nextResetData = {
+        token: payload.token || '',
+        email: payload.email || '',
+      };
+      setResetData(nextResetData);
+
+      const query = new URLSearchParams({
+        mode: 'reset-password',
+        token: nextResetData.token,
+        email: nextResetData.email,
+      });
+      window.history.replaceState({}, '', `${window.location.pathname}?${query.toString()}`);
+      return;
     }
-  }, []);
+
+    window.history.replaceState({}, '', window.location.pathname);
+  };
 
   useEffect(() => {
     const bootstrapAuth = async () => {
@@ -53,7 +71,7 @@ export default function App() {
     } finally {
       localStorage.removeItem('token');
       setUser(null);
-      setMode('login');
+      setAuthMode('login');
     }
   };
 
@@ -62,9 +80,31 @@ export default function App() {
   }
 
   if (!user) {
-    return mode === 'login'
-      ? <LoginPage onLogin={setUser} onSwitch={() => setMode('register')} infoMessage={loginInfo} />
-      : <RegisterPage onSwitch={() => setMode('login')} />;
+    if (mode === 'register') {
+      return <RegisterPage onSwitch={() => setAuthMode('login')} />;
+    }
+
+    if (mode === 'forgot-password') {
+      return <ForgotPasswordPage onBackToLogin={() => setAuthMode('login')} />;
+    }
+
+    if (mode === 'reset-password') {
+      return (
+        <ResetPasswordPage
+          token={resetData.token}
+          email={resetData.email}
+          onBackToLogin={() => setAuthMode('login')}
+        />
+      );
+    }
+
+    return (
+      <LoginPage
+        onLogin={setUser}
+        onSwitch={() => setAuthMode('register')}
+        onForgotPassword={() => setAuthMode('forgot-password')}
+      />
+    );
   }
 
   return user.role === 'moderator'

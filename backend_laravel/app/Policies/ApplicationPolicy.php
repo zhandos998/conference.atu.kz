@@ -19,7 +19,7 @@ class ApplicationPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasVerifiedEmail();
+        return true;
     }
 
     public function update(User $user, Application $application): bool

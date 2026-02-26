@@ -12,7 +12,7 @@ export default function RegisterPage({ onSwitch }) {
 
     try {
       await api.post('/auth/register', form);
-      setMessage('Регистрация успешна. Подтвердите email и выполните вход.');
+      setMessage('Регистрация успешна. Теперь выполните вход.');
     } catch (err) {
       setMessage(err.response?.data?.message || 'Ошибка регистрации');
     }

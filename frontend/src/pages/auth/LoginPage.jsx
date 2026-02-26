@@ -2,7 +2,7 @@
 import api from '../../api/client';
 import AppLayout from '../../components/AppLayout';
 
-export default function LoginPage({ onLogin, onSwitch, infoMessage }) {
+export default function LoginPage({ onLogin, onSwitch, onForgotPassword }) {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
 
@@ -22,8 +22,6 @@ export default function LoginPage({ onLogin, onSwitch, infoMessage }) {
   return (
     <AppLayout title="Вход" subtitle="Система регистрации участников научной конференции">
       <form onSubmit={submit} className="auth-form">
-        {infoMessage && <p style={{ color: '#166534' }}>{infoMessage}</p>}
-
         <div className="field">
           <label>Email</label>
           <input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
@@ -33,6 +31,7 @@ export default function LoginPage({ onLogin, onSwitch, infoMessage }) {
           <label>Пароль</label>
           <input required type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
         </div>
+        <button className="btn-link" type="button" onClick={onForgotPassword}>Забыли пароль?</button>
 
         {error && <p className="error-text">{error}</p>}
 
