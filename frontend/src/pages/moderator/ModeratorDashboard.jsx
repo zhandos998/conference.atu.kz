@@ -37,6 +37,13 @@ export default function ModeratorDashboard({ onLogout }) {
   const [status, setStatus] = useState('');
   const [direction, setDirection] = useState('');
   const [items, setItems] = useState([]);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    lastPage: 1,
+    from: 0,
+    to: 0,
+    total: 0,
+  });
   const [errorModal, setErrorModal] = useState({ open: false, message: '' });
   const [statusModal, setStatusModal] = useState({
     open: false,
@@ -45,17 +52,25 @@ export default function ModeratorDashboard({ onLogout }) {
     comment: '',
   });
 
-  const load = async (nextStatus = status, nextDirection = direction) => {
-    const params = {};
+  const load = async (nextPage = pagination.currentPage, nextStatus = status, nextDirection = direction) => {
+    const params = { page: nextPage };
     if (nextStatus) params.status = nextStatus;
     if (nextDirection) params.direction = nextDirection;
 
     const { data } = await api.get('/moderator/applications', { params });
+
     setItems(data.data ?? []);
+    setPagination({
+      currentPage: data.current_page ?? 1,
+      lastPage: data.last_page ?? 1,
+      from: data.from ?? 0,
+      to: data.to ?? 0,
+      total: data.total ?? 0,
+    });
   };
 
   useEffect(() => {
-    load('');
+    load(1, '', '');
   }, []);
 
   const openStatusModal = (id, newStatus) => {
@@ -83,7 +98,7 @@ export default function ModeratorDashboard({ onLogout }) {
         moderator_comment: statusModal.comment,
       });
       closeStatusModal();
-      await load();
+      await load(pagination.currentPage, status, direction);
     } catch (err) {
       setErrorModal({
         open: true,
@@ -120,50 +135,63 @@ export default function ModeratorDashboard({ onLogout }) {
     }
   };
 
+  const changeStatusFilter = (nextStatus) => {
+    setStatus(nextStatus);
+    load(1, nextStatus, direction);
+  };
+
+  const changeDirectionFilter = (nextDirection) => {
+    setDirection(nextDirection);
+    load(1, status, nextDirection);
+  };
+
+  const goToPage = (page) => {
+    if (page < 1 || page > pagination.lastPage || page === pagination.currentPage) {
+      return;
+    }
+
+    load(page, status, direction);
+  };
+
   return (
     <>
       <AppLayout
         title="Панель модератора"
         subtitle="Управление анкетами участников"
         wide
-        actions={<div style={{ display: 'flex', gap: 8 }}><button className="btn-primary" onClick={exportExcel}>Экспорт в Excel</button><button className="btn-danger" onClick={onLogout}>Выйти</button></div>}
+        actions={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn-primary" onClick={exportExcel}>Экспорт в Excel</button>
+            <button className="btn-danger" onClick={onLogout}>Выйти</button>
+          </div>
+        }
       >
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <div className="field" style={{ maxWidth: 320, minWidth: 260 }}>
-          <label>Фильтр по статусу</label>
-          <select
-            value={status}
-            onChange={(e) => {
-              const nextStatus = e.target.value;
-              setStatus(nextStatus);
-              load(nextStatus, direction);
-            }}
-          >
-            <option value="">Все</option>
-            <option value="pending">На рассмотрении</option>
-            <option value="accepted">Принято</option>
-            <option value="revision">На доработку</option>
-            <option value="rejected">Отклонено</option>
-          </select>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div className="field" style={{ maxWidth: 320, minWidth: 260 }}>
+            <label>Фильтр по статусу</label>
+            <select value={status} onChange={(e) => changeStatusFilter(e.target.value)}>
+              <option value="">Все</option>
+              <option value="pending">На рассмотрении</option>
+              <option value="accepted">Принято</option>
+              <option value="revision">На доработку</option>
+              <option value="rejected">Отклонено</option>
+            </select>
+          </div>
+
+          <div className="field" style={{ maxWidth: 520, minWidth: 260 }}>
+            <label>Фильтр по направлению</label>
+            <select value={direction} onChange={(e) => changeDirectionFilter(e.target.value)}>
+              <option value="">Все направления</option>
+              {directionOptions.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div className="field" style={{ maxWidth: 520, minWidth: 260 }}>
-          <label>Фильтр по направлению</label>
-          <select
-            value={direction}
-            onChange={(e) => {
-              const nextDirection = e.target.value;
-              setDirection(nextDirection);
-              load(status, nextDirection);
-            }}
-          >
-            <option value="">Все направления</option>
-            {directionOptions.map((option) => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+        <p className="muted">
+          Страница {pagination.currentPage} из {pagination.lastPage}. Показано {pagination.to} из {pagination.total} заявок.
+        </p>
 
         <div className="table-wrap">
           <table>
@@ -255,6 +283,28 @@ export default function ModeratorDashboard({ onLogout }) {
               })}
             </tbody>
           </table>
+        </div>
+
+        <div className="inline-actions" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="muted">Показано {pagination.from || 0}-{pagination.to || 0} из {pagination.total} заявок</div>
+          <div className="actions">
+            <button
+              className="btn-secondary"
+              type="button"
+              disabled={pagination.currentPage <= 1}
+              onClick={() => goToPage(pagination.currentPage - 1)}
+            >
+              Назад
+            </button>
+            <button
+              className="btn-secondary"
+              type="button"
+              disabled={pagination.currentPage >= pagination.lastPage}
+              onClick={() => goToPage(pagination.currentPage + 1)}
+            >
+              Вперед
+            </button>
+          </div>
         </div>
       </AppLayout>
 
