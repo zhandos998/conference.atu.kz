@@ -23,6 +23,10 @@ class ModeratorApplicationController extends Controller
             $query->where('status', $request->string('status'));
         }
 
+        if ($request->filled('direction')) {
+            $query->where('direction', $request->string('direction'));
+        }
+
         return response()->json($query->paginate(20));
     }
 

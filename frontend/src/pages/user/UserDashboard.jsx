@@ -19,6 +19,15 @@ const initialForm = {
   file: null,
 };
 
+const directionOptions = [
+  "Технология пищевых и перерабатывающих производств",
+  "Легкая и текстильная промышленность",
+  "Механизация, автоматизация и информатизация технологических процессов",
+  "Общеэкономические проблемы, индустрия гостеприимства",
+  "Естественные науки",
+  "Социально-гуманитарные науки",
+];
+
 const statusClass = {
   pending: "status status-pending",
   accepted: "status status-accepted",
@@ -308,11 +317,19 @@ export default function UserDashboard({ onLogout }) {
         </div>
         <div className="field">
           <label>Направление</label>
-          <input
+          <select
             required
             value={form.direction}
-            onChange={(e) => setForm({ ...form, direction: e.target.value })}
-          />
+            onChange={(e) => setForm({ ...form, direction: e.target.value })}>
+            <option value="" disabled>
+              Выберите направление
+            </option>
+            {directionOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="field">
           <label>Форма участия</label>
@@ -526,8 +543,15 @@ export default function UserDashboard({ onLogout }) {
           </button>
         }>
         <p>
-          <strong>Контакты департамента науки:</strong> вн. н.: 232, 139,
-          conference@atu.edu.kz
+          <strong>Контакты департамента науки:</strong>
+          <br />
+          <strong>Адрес:</strong> 050012, г. Алматы, ул. Толе би, 100,
+          Алматинский технологический университет, Департамент науки, каб. 617,
+          615, 1106.
+          <br />
+          <strong>Внутренний телефон:</strong> 243, 139.
+          <br />
+          <strong>E-mail:</strong> : conference2@atu.edu.kz.
         </p>
 
         {message && <p>{message}</p>}

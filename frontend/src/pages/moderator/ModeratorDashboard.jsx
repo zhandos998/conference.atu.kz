@@ -17,6 +17,15 @@ const statusLabel = {
   rejected: 'Отклонено',
 };
 
+const directionOptions = [
+  'Технология пищевых и перерабатывающих производств',
+  'Легкая и текстильная промышленность',
+  'Механизация, автоматизация и информатизация технологических процессов',
+  'Общеэкономические проблемы, индустрия гостеприимства',
+  'Естественные науки',
+  'Социально-гуманитарные науки',
+];
+
 const isImagePath = (path) => /\.(jpg|jpeg|png|gif|webp)$/i.test(path || '');
 const isPdfPath = (path) => /\.pdf$/i.test(path || '');
 const apiBaseUrl = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
@@ -26,6 +35,7 @@ const toReportFileUrl = (path) => `${apiOrigin}/storage/${path}`;
 
 export default function ModeratorDashboard({ onLogout }) {
   const [status, setStatus] = useState('');
+  const [direction, setDirection] = useState('');
   const [items, setItems] = useState([]);
   const [errorModal, setErrorModal] = useState({ open: false, message: '' });
   const [statusModal, setStatusModal] = useState({
@@ -35,8 +45,12 @@ export default function ModeratorDashboard({ onLogout }) {
     comment: '',
   });
 
-  const load = async (nextStatus = status) => {
-    const { data } = await api.get('/moderator/applications', { params: nextStatus ? { status: nextStatus } : {} });
+  const load = async (nextStatus = status, nextDirection = direction) => {
+    const params = {};
+    if (nextStatus) params.status = nextStatus;
+    if (nextDirection) params.direction = nextDirection;
+
+    const { data } = await api.get('/moderator/applications', { params });
     setItems(data.data ?? []);
   };
 
@@ -114,9 +128,17 @@ export default function ModeratorDashboard({ onLogout }) {
         wide
         actions={<div style={{ display: 'flex', gap: 8 }}><button className="btn-primary" onClick={exportExcel}>Экспорт в Excel</button><button className="btn-danger" onClick={onLogout}>Выйти</button></div>}
       >
-        <div className="field" style={{ maxWidth: 260 }}>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div className="field" style={{ maxWidth: 320, minWidth: 260 }}>
           <label>Фильтр по статусу</label>
-          <select value={status} onChange={(e) => { setStatus(e.target.value); load(e.target.value); }}>
+          <select
+            value={status}
+            onChange={(e) => {
+              const nextStatus = e.target.value;
+              setStatus(nextStatus);
+              load(nextStatus, direction);
+            }}
+          >
             <option value="">Все</option>
             <option value="pending">На рассмотрении</option>
             <option value="accepted">Принято</option>
@@ -124,6 +146,24 @@ export default function ModeratorDashboard({ onLogout }) {
             <option value="rejected">Отклонено</option>
           </select>
         </div>
+
+        <div className="field" style={{ maxWidth: 520, minWidth: 260 }}>
+          <label>Фильтр по направлению</label>
+          <select
+            value={direction}
+            onChange={(e) => {
+              const nextDirection = e.target.value;
+              setDirection(nextDirection);
+              load(status, nextDirection);
+            }}
+          >
+            <option value="">Все направления</option>
+            {directionOptions.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        </div>
+      </div>
 
         <div className="table-wrap">
           <table>
