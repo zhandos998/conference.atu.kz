@@ -17,17 +17,18 @@ class ApplicationSubmissionTest extends TestCase
     private function payload(): array
     {
         return [
-            'full_name' => 'РРІР°РЅ РРІР°РЅРѕРІ',
-            'organization_position' => 'РђРўРЈ, СЃС‚СѓРґРµРЅС‚',
-            'academic_degree' => 'Р±Р°РєР°Р»Р°РІСЂ',
+            'full_name' => 'Р ВР Р†Р В°Р Р… Р ВР Р†Р В°Р Р…Р С•Р Р†',
+            'organization_position' => 'Р С’Р СћР Р€, РЎРѓРЎвЂљРЎС“Р Т‘Р ВµР Р…РЎвЂљ',
+            'academic_degree' => 'Р В±Р В°Р С”Р В°Р В»Р В°Р Р†РЎР‚',
             'phone' => '+77010000000',
             'email' => 'ivan@example.com',
-            'supervisor_full_name' => 'РџРµС‚СЂРѕРІ РџРµС‚СЂ РџРµС‚СЂРѕРІРёС‡',
-            'supervisor_organization_position' => 'РђРўРЈ, РґРѕС†РµРЅС‚',
-            'supervisor_academic_degree' => 'Рє.С‚.РЅ.',
-            'report_title' => 'РСЃСЃР»РµРґРѕРІР°РЅРёРµ С‚РµС…РЅРѕР»РѕРіРёР№',
-            'direction' => 'РўРµС…РЅРѕР»РѕРіРёРё РїРёС‰РµРІРѕР№ РїСЂРѕРјС‹С€Р»РµРЅРЅРѕСЃС‚Рё',
-            'participation_form' => 'РћС‡РЅРѕ',
+            'supervisor_full_name' => 'Р СџР ВµРЎвЂљРЎР‚Р С•Р Р† Р СџР ВµРЎвЂљРЎР‚ Р СџР ВµРЎвЂљРЎР‚Р С•Р Р†Р С‘РЎвЂЎ',
+            'supervisor_organization_position' => 'Р С’Р СћР Р€, Р Т‘Р С•РЎвЂ Р ВµР Р…РЎвЂљ',
+            'supervisor_academic_degree' => 'Р С”.РЎвЂљ.Р Р….',
+            'department' => 'Кафедра информационных технологий',
+            'report_title' => 'Р ВРЎРѓРЎРѓР В»Р ВµР Т‘Р С•Р Р†Р В°Р Р…Р С‘Р Вµ РЎвЂљР ВµРЎвЂ¦Р Р…Р С•Р В»Р С•Р С–Р С‘Р в„–',
+            'direction' => 'Р СћР ВµРЎвЂ¦Р Р…Р С•Р В»Р С•Р С–Р С‘Р С‘ Р С—Р С‘РЎвЂ°Р ВµР Р†Р С•Р в„– Р С—РЎР‚Р С•Р СРЎвЂ№РЎв‚¬Р В»Р ВµР Р…Р Р…Р С•РЎРѓРЎвЂљР С‘',
+            'participation_form' => 'Р С›РЎвЂЎР Р…Р С•',
             'hotel_booking_needed' => false,
         ];
     }
@@ -45,7 +46,7 @@ class ApplicationSubmissionTest extends TestCase
         $first->assertCreated();
 
         $second = $this->post('/api/applications', array_merge($this->payload(), [
-            'report_title' => 'Второй доклад',
+            'report_title' => 'Р’С‚РѕСЂРѕР№ РґРѕРєР»Р°Рґ',
             'email' => 'ivan.second@example.com',
         ]));
         $second->assertCreated();
@@ -81,20 +82,20 @@ class ApplicationSubmissionTest extends TestCase
         $application = Application::create(array_merge($this->payload(), [
             'user_id' => $user->id,
             'status' => Application::STATUS_REVISION,
-            'moderator_comment' => 'Р СњРЎС“Р В¶Р Р…Р С• Р Т‘Р С•РЎР‚Р В°Р В±Р С•РЎвЂљР В°РЎвЂљРЎРЉ Р Т‘Р С•Р С”Р В»Р В°Р Т‘.',
+            'moderator_comment' => 'Р В РЎСљР РЋРЎвЂњР В Р’В¶Р В Р вЂ¦Р В РЎвЂў Р В РўвЂР В РЎвЂўР РЋР вЂљР В Р’В°Р В Р’В±Р В РЎвЂўР РЋРІР‚С™Р В Р’В°Р РЋРІР‚С™Р РЋР Р‰ Р В РўвЂР В РЎвЂўР В РЎвЂќР В Р’В»Р В Р’В°Р В РўвЂ.',
         ]));
 
         Sanctum::actingAs($user);
 
         $response = $this->patch('/api/applications/' . $application->id, array_merge($this->payload(), [
-            'report_title' => 'Р С›Р В±Р Р…Р С•Р Р†Р В»Р ВµР Р…Р Р…Р С•Р Вµ Р Р…Р В°Р В·Р Р†Р В°Р Р…Р С‘Р Вµ Р Т‘Р С•Р С”Р В»Р В°Р Т‘Р В°',
+            'report_title' => 'Р В РЎвЂєР В Р’В±Р В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В Р’В»Р В Р’ВµР В Р вЂ¦Р В Р вЂ¦Р В РЎвЂўР В Р’Вµ Р В Р вЂ¦Р В Р’В°Р В Р’В·Р В Р вЂ Р В Р’В°Р В Р вЂ¦Р В РЎвЂР В Р’Вµ Р В РўвЂР В РЎвЂўР В РЎвЂќР В Р’В»Р В Р’В°Р В РўвЂР В Р’В°',
         ]));
 
         $response->assertOk();
 
         $this->assertDatabaseHas('applications', [
             'id' => $application->id,
-            'report_title' => 'Р С›Р В±Р Р…Р С•Р Р†Р В»Р ВµР Р…Р Р…Р С•Р Вµ Р Р…Р В°Р В·Р Р†Р В°Р Р…Р С‘Р Вµ Р Т‘Р С•Р С”Р В»Р В°Р Т‘Р В°',
+            'report_title' => 'Р В РЎвЂєР В Р’В±Р В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В Р’В»Р В Р’ВµР В Р вЂ¦Р В Р вЂ¦Р В РЎвЂўР В Р’Вµ Р В Р вЂ¦Р В Р’В°Р В Р’В·Р В Р вЂ Р В Р’В°Р В Р вЂ¦Р В РЎвЂР В Р’Вµ Р В РўвЂР В РЎвЂўР В РЎвЂќР В Р’В»Р В Р’В°Р В РўвЂР В Р’В°',
             'status' => Application::STATUS_PENDING,
             'moderator_comment' => null,
         ]);

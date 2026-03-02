@@ -26,6 +26,7 @@ class Application extends Model
         'supervisor_full_name',
         'supervisor_organization_position',
         'supervisor_academic_degree',
+        'department',
         'report_title',
         'direction',
         'participation_form',

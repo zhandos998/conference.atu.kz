@@ -18,17 +18,18 @@ class ModeratorWorkflowTest extends TestCase
     {
         return [
             'user_id' => $user->id,
-            'full_name' => 'Иван Иванов',
-            'organization_position' => 'АТУ, магистрант',
-            'academic_degree' => 'магистр',
+            'full_name' => 'Р ВР Р†Р В°Р Р… Р ВР Р†Р В°Р Р…Р С•Р Р†',
+            'organization_position' => 'Р С’Р СћР Р€, Р СР В°Р С–Р С‘РЎРѓРЎвЂљРЎР‚Р В°Р Р…РЎвЂљ',
+            'academic_degree' => 'Р СР В°Р С–Р С‘РЎРѓРЎвЂљРЎР‚',
             'phone' => '+77010000000',
             'email' => 'ivan@example.com',
-            'supervisor_full_name' => 'Петров П.П.',
-            'supervisor_organization_position' => 'АТУ, профессор',
-            'supervisor_academic_degree' => 'д.т.н.',
-            'report_title' => 'Доклад по теме',
-            'direction' => 'ИТ',
-            'participation_form' => 'Очно',
+            'supervisor_full_name' => 'Р СџР ВµРЎвЂљРЎР‚Р С•Р Р† Р Сџ.Р Сџ.',
+            'supervisor_organization_position' => 'Р С’Р СћР Р€, Р С—РЎР‚Р С•РЎвЂћР ВµРЎРѓРЎРѓР С•РЎР‚',
+            'supervisor_academic_degree' => 'Рґ.С‚.РЅ.',
+            'department' => 'Кафедра информационных технологий',
+            'report_title' => 'Р вЂќР С•Р С”Р В»Р В°Р Т‘ Р С—Р С• РЎвЂљР ВµР СР Вµ',
+            'direction' => 'Р ВР Сћ',
+            'participation_form' => 'Р С›РЎвЂЎР Р…Р С•',
             'hotel_booking_needed' => false,
             'status' => 'pending',
         ];
@@ -54,7 +55,7 @@ class ModeratorWorkflowTest extends TestCase
 
         $response = $this->patchJson('/api/moderator/applications/' . $application->id . '/status', [
             'status' => 'accepted',
-            'moderator_comment' => 'Доклад принят.',
+            'moderator_comment' => 'Р вЂќР С•Р С”Р В»Р В°Р Т‘ Р С—РЎР‚Р С‘Р Р…РЎРЏРЎвЂљ.',
         ]);
 
         $response->assertOk();
@@ -62,7 +63,7 @@ class ModeratorWorkflowTest extends TestCase
         $this->assertDatabaseHas('applications', [
             'id' => $application->id,
             'status' => 'accepted',
-            'moderator_comment' => 'Доклад принят.',
+            'moderator_comment' => 'Р вЂќР С•Р С”Р В»Р В°Р Т‘ Р С—РЎР‚Р С‘Р Р…РЎРЏРЎвЂљ.',
         ]);
 
         $this->assertDatabaseHas('application_status_logs', [

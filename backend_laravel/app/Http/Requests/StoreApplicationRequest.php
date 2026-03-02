@@ -22,6 +22,7 @@ class StoreApplicationRequest extends FormRequest
             'supervisor_full_name' => ['required', 'string', 'max:255'],
             'supervisor_organization_position' => ['required', 'string', 'max:255'],
             'supervisor_academic_degree' => ['required', 'string', 'max:255'],
+            'department' => ['required', 'string', 'max:255'],
             'report_title' => ['required', 'string', 'max:255'],
             'direction' => ['required', 'string', 'max:255'],
             'participation_form' => ['required', 'string', 'max:255'],

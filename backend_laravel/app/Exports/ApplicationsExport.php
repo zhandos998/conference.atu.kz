@@ -34,6 +34,7 @@ class ApplicationsExport implements FromArray, ShouldAutoSize, WithEvents
             'Научный руководитель',
             'Должность научного руководителя',
             'Степень научного руководителя',
+            'Кафедра',
             'Форма участия',
             'Бронирование гостиницы',
             'Оплата',
@@ -52,11 +53,11 @@ class ApplicationsExport implements FromArray, ShouldAutoSize, WithEvents
             $reportFileUrl = $app->file_path ? url('storage/' . ltrim($app->file_path, '/')) : '';
 
             if ($receiptUrl) {
-                $this->hyperlinks["M{$excelRow}"] = $receiptUrl;
+                $this->hyperlinks["N{$excelRow}"] = $receiptUrl;
             }
 
             if ($reportFileUrl) {
-                $this->hyperlinks["O{$excelRow}"] = $reportFileUrl;
+                $this->hyperlinks["P{$excelRow}"] = $reportFileUrl;
             }
 
             $rows[] = [
@@ -70,6 +71,7 @@ class ApplicationsExport implements FromArray, ShouldAutoSize, WithEvents
                 $app->supervisor_full_name,
                 $app->supervisor_organization_position,
                 $app->supervisor_academic_degree,
+                $app->department,
                 $app->participation_form,
                 $app->hotel_booking_needed ? 'Да' : 'Нет',
                 $receiptUrl ? 'Открыть чек' : 'Чека нет',

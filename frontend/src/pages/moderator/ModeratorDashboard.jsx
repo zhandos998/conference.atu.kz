@@ -37,20 +37,9 @@ export default function ModeratorDashboard({ onLogout }) {
   const [status, setStatus] = useState('');
   const [direction, setDirection] = useState('');
   const [items, setItems] = useState([]);
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    lastPage: 1,
-    from: 0,
-    to: 0,
-    total: 0,
-  });
+  const [pagination, setPagination] = useState({ currentPage: 1, lastPage: 1, from: 0, to: 0, total: 0 });
   const [errorModal, setErrorModal] = useState({ open: false, message: '' });
-  const [statusModal, setStatusModal] = useState({
-    open: false,
-    applicationId: null,
-    newStatus: 'pending',
-    comment: '',
-  });
+  const [statusModal, setStatusModal] = useState({ open: false, applicationId: null, newStatus: 'pending', comment: '' });
 
   const load = async (nextPage = pagination.currentPage, nextStatus = status, nextDirection = direction) => {
     const params = { page: nextPage };
@@ -74,21 +63,11 @@ export default function ModeratorDashboard({ onLogout }) {
   }, []);
 
   const openStatusModal = (id, newStatus) => {
-    setStatusModal({
-      open: true,
-      applicationId: id,
-      newStatus,
-      comment: '',
-    });
+    setStatusModal({ open: true, applicationId: id, newStatus, comment: '' });
   };
 
   const closeStatusModal = () => {
-    setStatusModal({
-      open: false,
-      applicationId: null,
-      newStatus: 'pending',
-      comment: '',
-    });
+    setStatusModal({ open: false, applicationId: null, newStatus: 'pending', comment: '' });
   };
 
   const submitStatusChange = async () => {
@@ -100,20 +79,14 @@ export default function ModeratorDashboard({ onLogout }) {
       closeStatusModal();
       await load(pagination.currentPage, status, direction);
     } catch (err) {
-      setErrorModal({
-        open: true,
-        message: err.response?.data?.message || 'Не удалось изменить статус заявки.',
-      });
+      setErrorModal({ open: true, message: err.response?.data?.message || 'Не удалось изменить статус заявки.' });
     }
   };
 
   const exportExcel = async () => {
     try {
       const response = await api.get('/moderator/applications-export', { responseType: 'blob' });
-      const blob = new Blob([response.data], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      });
-
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const contentDisposition = response.headers['content-disposition'] || '';
       const matched = contentDisposition.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)/i);
       const backendFileName = matched?.[1] ? decodeURIComponent(matched[1].replace(/\"/g, '').trim()) : '';
@@ -128,10 +101,7 @@ export default function ModeratorDashboard({ onLogout }) {
       link.remove();
       URL.revokeObjectURL(url);
     } catch {
-      setErrorModal({
-        open: true,
-        message: 'Не удалось выгрузить Excel.',
-      });
+      setErrorModal({ open: true, message: 'Не удалось выгрузить Excel.' });
     }
   };
 
@@ -189,9 +159,7 @@ export default function ModeratorDashboard({ onLogout }) {
           </div>
         </div>
 
-        <p className="muted">
-          Страница {pagination.currentPage} из {pagination.lastPage}. Показано {pagination.to} из {pagination.total} заявок.
-        </p>
+        <p className="muted">Страница {pagination.currentPage} из {pagination.lastPage}. Показано {pagination.to} из {pagination.total} заявок.</p>
 
         <div className="table-wrap">
           <table>
@@ -207,6 +175,7 @@ export default function ModeratorDashboard({ onLogout }) {
                 <th>Научный руководитель</th>
                 <th>Должность научного руководителя</th>
                 <th>Степень научного руководителя</th>
+                <th>Кафедра</th>
                 <th>Форма участия</th>
                 <th>Бронирование гостиницы</th>
                 <th>Оплата</th>
@@ -234,42 +203,21 @@ export default function ModeratorDashboard({ onLogout }) {
                     <td>{app.supervisor_full_name}</td>
                     <td>{app.supervisor_organization_position}</td>
                     <td>{app.supervisor_academic_degree}</td>
+                    <td>{app.department}</td>
                     <td>{app.participation_form}</td>
                     <td>{app.hotel_booking_needed ? 'Да' : 'Нет'}</td>
                     <td>
                       {receiptPath ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 280 }}>
                           <a href={receiptUrl} target="_blank" rel="noreferrer">ФАЙЛ чека</a>
-                          {isImagePath(receiptPath) && (
-                            <img
-                              src={receiptUrl}
-                              alt="Чек"
-                              style={{ width: 260, maxWidth: '100%', border: '1px solid #cbd5e1', borderRadius: 6 }}
-                            />
-                          )}
-                          {isPdfPath(receiptPath) && (
-                            <iframe
-                              title={`receipt-${app.id}`}
-                              src={`${receiptUrl}#page=1`}
-                              style={{ width: 260, height: 320, border: '1px solid #cbd5e1', borderRadius: 6 }}
-                            />
-                          )}
-                          {!isImagePath(receiptPath) && !isPdfPath(receiptPath) && (
-                            <span>Предпросмотр недоступен для этого формата</span>
-                          )}
+                          {isImagePath(receiptPath) && <img src={receiptUrl} alt="Чек" style={{ width: 260, maxWidth: '100%', border: '1px solid #cbd5e1', borderRadius: 6 }} />}
+                          {isPdfPath(receiptPath) && <iframe title={`receipt-${app.id}`} src={`${receiptUrl}#page=1`} style={{ width: 260, height: 320, border: '1px solid #cbd5e1', borderRadius: 6 }} />}
+                          {!isImagePath(receiptPath) && !isPdfPath(receiptPath) && <span>Предпросмотр недоступен для этого формата</span>}
                         </div>
                       ) : 'Чек не отправлен'}
                     </td>
                     <td></td>
-                    <td>
-                      {app.file_path ? (
-                        <a href={reportFileUrl} target="_blank" rel="noreferrer">
-                          ФАЙЛ доклада
-                        </a>
-                      ) : (
-                        'Файл не загружен'
-                      )}
-                    </td>
+                    <td>{app.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">ФАЙЛ доклада</a> : 'Файл не загружен'}</td>
                     <td><span className={statusClass[app.status] || statusClass.pending}>{statusLabel[app.status] || app.status}</span></td>
                     <td>
                       <div className="actions">
@@ -288,22 +236,8 @@ export default function ModeratorDashboard({ onLogout }) {
         <div className="inline-actions" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <div className="muted">Показано {pagination.from || 0}-{pagination.to || 0} из {pagination.total} заявок</div>
           <div className="actions">
-            <button
-              className="btn-secondary"
-              type="button"
-              disabled={pagination.currentPage <= 1}
-              onClick={() => goToPage(pagination.currentPage - 1)}
-            >
-              Назад
-            </button>
-            <button
-              className="btn-secondary"
-              type="button"
-              disabled={pagination.currentPage >= pagination.lastPage}
-              onClick={() => goToPage(pagination.currentPage + 1)}
-            >
-              Вперед
-            </button>
+            <button className="btn-secondary" type="button" disabled={pagination.currentPage <= 1} onClick={() => goToPage(pagination.currentPage - 1)}>Назад</button>
+            <button className="btn-secondary" type="button" disabled={pagination.currentPage >= pagination.lastPage} onClick={() => goToPage(pagination.currentPage + 1)}>Вперед</button>
           </div>
         </div>
       </AppLayout>
@@ -321,12 +255,7 @@ export default function ModeratorDashboard({ onLogout }) {
       >
         <div className="field" style={{ margin: 0 }}>
           <label>Комментарий модератора</label>
-          <textarea
-            rows={4}
-            value={statusModal.comment}
-            onChange={(e) => setStatusModal((prev) => ({ ...prev, comment: e.target.value }))}
-            placeholder="Добавьте комментарий при необходимости"
-          />
+          <textarea rows={4} value={statusModal.comment} onChange={(e) => setStatusModal((prev) => ({ ...prev, comment: e.target.value }))} placeholder="Добавьте комментарий при необходимости" />
         </div>
       </Modal>
 
