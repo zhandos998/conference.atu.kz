@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Application;
+use App\Models\SystemSetting;
 use App\Models\User;
 use App\Notifications\ApplicationStatusChangedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -90,5 +91,29 @@ class ModeratorWorkflowTest extends TestCase
         $response->assertOk();
         $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         $this->assertStringContainsString('conference_application_', (string) $response->headers->get('content-disposition'));
+    }
+
+    public function test_moderator_can_toggle_submission_settings(): void
+    {
+        $moderator = User::factory()->create([
+            'role' => 'moderator',
+            'email_verified_at' => now(),
+        ]);
+
+        Sanctum::actingAs($moderator);
+
+        $this->patchJson('/api/moderator/application-submission-settings', [
+            'enabled' => false,
+        ])->assertOk()->assertJson([
+            'enabled' => false,
+        ]);
+
+        $this->assertFalse(SystemSetting::getBoolean(SystemSetting::KEY_APPLICATION_SUBMISSION_ENABLED, true));
+
+        $this->getJson('/api/moderator/application-submission-settings')
+            ->assertOk()
+            ->assertJson([
+                'enabled' => false,
+            ]);
     }
 }

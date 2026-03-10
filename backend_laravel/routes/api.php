@@ -19,6 +19,7 @@ Route::prefix('auth')->group(function () {
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/me', fn (Request $request) => $request->user());
+    Route::get('/application-submission-settings', [ApplicationController::class, 'submissionSettings']);
 
     Route::get('/applications', [ApplicationController::class, 'index']);
     Route::post('/applications', [ApplicationController::class, 'store']);
@@ -32,5 +33,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/applications', [ModeratorApplicationController::class, 'index']);
         Route::patch('/applications/{application}/status', [ModeratorApplicationController::class, 'updateStatus']);
         Route::get('/applications-export', [ModeratorApplicationController::class, 'export']);
+        Route::get('/application-submission-settings', [ModeratorApplicationController::class, 'submissionSettings']);
+        Route::patch('/application-submission-settings', [ModeratorApplicationController::class, 'updateSubmissionSettings']);
     });
 });

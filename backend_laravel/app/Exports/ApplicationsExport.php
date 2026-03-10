@@ -25,6 +25,7 @@ class ApplicationsExport implements FromArray, ShouldAutoSize, WithEvents
 
         $rows[] = [
             '№',
+            'Дата и время создания',
             'Email',
             'Номер телефона',
             'Название доклада',
@@ -53,15 +54,16 @@ class ApplicationsExport implements FromArray, ShouldAutoSize, WithEvents
             $reportFileUrl = $app->file_path ? url('storage/' . ltrim($app->file_path, '/')) : '';
 
             if ($receiptUrl) {
-                $this->hyperlinks["N{$excelRow}"] = $receiptUrl;
+                $this->hyperlinks["O{$excelRow}"] = $receiptUrl;
             }
 
             if ($reportFileUrl) {
-                $this->hyperlinks["P{$excelRow}"] = $reportFileUrl;
+                $this->hyperlinks["Q{$excelRow}"] = $reportFileUrl;
             }
 
             $rows[] = [
                 $index + 1,
+                optional($app->created_at)->format('d.m.Y H:i:s'),
                 $app->email,
                 $app->phone,
                 $app->report_title,

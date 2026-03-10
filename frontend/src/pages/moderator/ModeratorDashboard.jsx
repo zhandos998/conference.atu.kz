@@ -40,6 +40,8 @@ export default function ModeratorDashboard({ onLogout }) {
   const [pagination, setPagination] = useState({ currentPage: 1, lastPage: 1, from: 0, to: 0, total: 0 });
   const [errorModal, setErrorModal] = useState({ open: false, message: '' });
   const [statusModal, setStatusModal] = useState({ open: false, applicationId: null, newStatus: 'pending', comment: '' });
+  const [submissionEnabled, setSubmissionEnabled] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
   const load = async (nextPage = pagination.currentPage, nextStatus = status, nextDirection = direction) => {
     const params = { page: nextPage };
@@ -58,8 +60,20 @@ export default function ModeratorDashboard({ onLogout }) {
     });
   };
 
+  const loadSubmissionSettings = async () => {
+    const { data } = await api.get('/moderator/application-submission-settings');
+    setSubmissionEnabled(Boolean(data?.enabled));
+  };
+
   useEffect(() => {
-    load(1, '', '');
+    const bootstrap = async () => {
+      await Promise.all([
+        load(1, '', ''),
+        loadSubmissionSettings(),
+      ]);
+    };
+
+    bootstrap();
   }, []);
 
   const openStatusModal = (id, newStatus) => {
@@ -123,6 +137,22 @@ export default function ModeratorDashboard({ onLogout }) {
     load(page, status, direction);
   };
 
+  const toggleSubmission = async () => {
+    const nextValue = !submissionEnabled;
+    setSettingsSaving(true);
+
+    try {
+      const { data } = await api.patch('/moderator/application-submission-settings', {
+        enabled: nextValue,
+      });
+      setSubmissionEnabled(Boolean(data?.enabled));
+    } catch (err) {
+      setErrorModal({ open: true, message: err.response?.data?.message || 'Не удалось обновить настройку приема заявок.' });
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
   return (
     <>
       <AppLayout
@@ -137,6 +167,16 @@ export default function ModeratorDashboard({ onLogout }) {
         }
       >
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div className="field" style={{ maxWidth: 420, minWidth: 260 }}>
+            <label>Прием заявок</label>
+            <div className="inline-actions">
+              <span>{submissionEnabled ? 'Включен' : 'Отключен'}</span>
+              <button className="btn-secondary" type="button" disabled={settingsSaving} onClick={toggleSubmission}>
+                {settingsSaving ? 'Сохранение...' : (submissionEnabled ? 'Отключить' : 'Включить')}
+              </button>
+            </div>
+          </div>
+
           <div className="field" style={{ maxWidth: 320, minWidth: 260 }}>
             <label>Фильтр по статусу</label>
             <select value={status} onChange={(e) => changeStatusFilter(e.target.value)}>
@@ -166,6 +206,7 @@ export default function ModeratorDashboard({ onLogout }) {
             <thead>
               <tr>
                 <th>№</th>
+                <th>Дата создания</th>
                 <th>Email</th>
                 <th>Номер телефона</th>
                 <th>Название доклада</th>
@@ -194,6 +235,7 @@ export default function ModeratorDashboard({ onLogout }) {
                 return (
                   <tr key={app.id}>
                     <td>{app.id}</td>
+                    <td>{app.created_at ? new Date(app.created_at).toLocaleString('ru-RU') : '-'}</td>
                     <td>{app.email}</td>
                     <td>{app.phone}</td>
                     <td>{app.report_title}</td>

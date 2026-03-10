@@ -72,6 +72,7 @@ export default function UserDashboard({ onLogout }) {
   const [paymentReceipt, setPaymentReceipt] = useState(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [submissionEnabled, setSubmissionEnabled] = useState(true);
   const [noticeModal, setNoticeModal] = useState({ open: false, title: '', message: '' });
 
   const openNotice = (title, msg) => setNoticeModal({ open: true, title, message: msg });
@@ -82,8 +83,20 @@ export default function UserDashboard({ onLogout }) {
     setApplications(data);
   };
 
+  const loadSubmissionSettings = async () => {
+    const { data } = await api.get('/application-submission-settings');
+    setSubmissionEnabled(Boolean(data?.enabled));
+  };
+
   useEffect(() => {
-    loadApplications();
+    const bootstrap = async () => {
+      await Promise.all([
+        loadApplications(),
+        loadSubmissionSettings(),
+      ]);
+    };
+
+    bootstrap();
   }, []);
 
   const openApplication = async (applicationId) => {
@@ -103,11 +116,19 @@ export default function UserDashboard({ onLogout }) {
     setMessage('');
     setError('');
     setPaymentReceipt(null);
-    await loadApplications();
+    await Promise.all([
+      loadApplications(),
+      loadSubmissionSettings(),
+    ]);
     setView('list');
   };
 
   const goToCreate = () => {
+    if (!submissionEnabled) {
+      openNotice('Прием заявок отключен', 'Менеджер временно отключил отправку заявок.');
+      return;
+    }
+
     setMessage('');
     setError('');
     setForm(initialForm);
@@ -116,6 +137,11 @@ export default function UserDashboard({ onLogout }) {
 
   const goToEdit = () => {
     if (!selectedApplication) {
+      return;
+    }
+
+    if (!submissionEnabled) {
+      openNotice('Повторная отправка отключена', 'Менеджер временно отключил отправку заявок.');
       return;
     }
 
@@ -149,6 +175,11 @@ export default function UserDashboard({ onLogout }) {
     setMessage('');
     setError('');
 
+    if (!submissionEnabled) {
+      setError('Менеджер временно отключил отправку заявок.');
+      return;
+    }
+
     try {
       await api.post('/applications', buildPayload());
       setMessage('Заявка успешно отправлена.');
@@ -164,6 +195,11 @@ export default function UserDashboard({ onLogout }) {
     setError('');
 
     if (!selectedApplication) {
+      return;
+    }
+
+    if (!submissionEnabled) {
+      setError('Менеджер временно отключил отправку заявок.');
       return;
     }
 
@@ -209,6 +245,8 @@ export default function UserDashboard({ onLogout }) {
 
   const renderApplicationForm = (onSubmit, submitLabel) => (
     <form onSubmit={onSubmit}>
+      {!submissionEnabled && <p className="error-text">Прием заявок временно отключен менеджером.</p>}
+
       <div className="grid">
         <div className="field">
           <label>Ф.И.О.</label>
@@ -277,7 +315,7 @@ export default function UserDashboard({ onLogout }) {
       </div>
 
       <div className="inline-actions">
-        <button className="btn-primary" type="submit">{submitLabel}</button>
+        <button className="btn-primary" type="submit" disabled={!submissionEnabled}>{submitLabel}</button>
         <button className="btn-secondary" type="button" onClick={goToList}>Назад к списку</button>
       </div>
     </form>
@@ -285,8 +323,10 @@ export default function UserDashboard({ onLogout }) {
 
   const renderList = () => (
     <>
+      {!submissionEnabled && <p className="error-text">Прием заявок сейчас отключен менеджером.</p>}
+
       <div className="inline-actions">
-        <button className="btn-primary" type="button" onClick={goToCreate}>Добавить заявку</button>
+        <button className="btn-primary" type="button" onClick={goToCreate} disabled={!submissionEnabled}>Добавить заявку</button>
       </div>
 
       {applications.length === 0 ? (
@@ -319,7 +359,7 @@ export default function UserDashboard({ onLogout }) {
       <>
         <div className="inline-actions">
           <button className="btn-secondary" type="button" onClick={goToList}>К списку заявок</button>
-          <button className="btn-primary" type="button" onClick={goToEdit}>Изменить заявку</button>
+          <button className="btn-primary" type="button" onClick={goToEdit} disabled={!submissionEnabled}>Изменить заявку</button>
         </div>
 
         <div className="app-item" style={{ marginTop: 12 }}>
@@ -336,6 +376,7 @@ export default function UserDashboard({ onLogout }) {
           <p><strong>Направление:</strong> {selectedApplication.direction}</p>
           <p><strong>Форма участия:</strong> {selectedApplication.participation_form}</p>
           <p><strong>Бронирование гостиницы:</strong> {selectedApplication.hotel_booking_needed ? 'Да' : 'Нет'}</p>
+          <p><strong>Дата создания:</strong> {selectedApplication.created_at ? new Date(selectedApplication.created_at).toLocaleString('ru-RU') : '-'}</p>
           <p><strong>Файл доклада:</strong> {selectedApplication.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">Открыть файл</a> : 'Файл не загружен'}</p>
           <p><strong>Статус:</strong> <span className={statusClass[selectedApplication.status] || statusClass.pending}>{statusLabel[selectedApplication.status] || selectedApplication.status}</span></p>
           <p><strong>Комментарий модератора:</strong> {selectedApplication.moderator_comment || '-'}</p>

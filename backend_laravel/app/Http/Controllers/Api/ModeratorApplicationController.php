@@ -7,12 +7,37 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateApplicationStatusRequest;
 use App\Models\Application;
 use App\Models\ApplicationStatusLog;
+use App\Models\SystemSetting;
 use App\Notifications\ApplicationStatusChangedNotification;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ModeratorApplicationController extends Controller
 {
+    public function submissionSettings()
+    {
+        $this->authorize('moderate', Application::class);
+
+        return response()->json([
+            'enabled' => $this->isApplicationSubmissionEnabled(),
+        ]);
+    }
+
+    public function updateSubmissionSettings(Request $request)
+    {
+        $this->authorize('moderate', Application::class);
+
+        $validated = $request->validate([
+            'enabled' => ['required', 'boolean'],
+        ]);
+
+        SystemSetting::setBoolean(SystemSetting::KEY_APPLICATION_SUBMISSION_ENABLED, (bool) $validated['enabled']);
+
+        return response()->json([
+            'enabled' => $this->isApplicationSubmissionEnabled(),
+        ]);
+    }
+
     public function index(Request $request)
     {
         $this->authorize('moderate', Application::class);
@@ -75,5 +100,10 @@ class ModeratorApplicationController extends Controller
         }
 
         return mb_convert_encoding($value, 'UTF-8', 'Windows-1251,CP1251,ISO-8859-1,UTF-8');
+    }
+
+    private function isApplicationSubmissionEnabled(): bool
+    {
+        return SystemSetting::getBoolean(SystemSetting::KEY_APPLICATION_SUBMISSION_ENABLED, true);
     }
 }

@@ -7,12 +7,20 @@ use App\Http\Requests\StoreApplicationRequest;
 use App\Http\Requests\UpdateApplicationRequest;
 use App\Http\Requests\UploadPaymentReceiptRequest;
 use App\Models\Application;
+use App\Models\SystemSetting;
 use App\Notifications\ApplicationSubmittedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class ApplicationController extends Controller
 {
+    public function submissionSettings()
+    {
+        return response()->json([
+            'enabled' => $this->isApplicationSubmissionEnabled(),
+        ]);
+    }
+
     public function index(Request $request)
     {
         return response()->json(
@@ -22,6 +30,12 @@ class ApplicationController extends Controller
 
     public function store(StoreApplicationRequest $request)
     {
+        if (! $this->isApplicationSubmissionEnabled()) {
+            return response()->json([
+                'message' => 'Прием заявок временно отключен менеджером.',
+            ], 403);
+        }
+
         $filePath = null;
         if ($request->hasFile('file')) {
             $filePath = $request->file('file')->store('applications', 'public');
@@ -48,6 +62,12 @@ class ApplicationController extends Controller
     public function update(UpdateApplicationRequest $request, Application $application)
     {
         $this->authorize('update', $application);
+
+        if (! $this->isApplicationSubmissionEnabled()) {
+            return response()->json([
+                'message' => 'Повторная отправка заявок временно отключена менеджером.',
+            ], 403);
+        }
 
         $data = $request->validated();
 
@@ -129,5 +149,10 @@ class ApplicationController extends Controller
             'Content-Type' => $mime,
             'Content-Disposition' => 'inline; filename="' . basename($application->payment_receipt_path) . '"',
         ]);
+    }
+
+    private function isApplicationSubmissionEnabled(): bool
+    {
+        return SystemSetting::getBoolean(SystemSetting::KEY_APPLICATION_SUBMISSION_ENABLED, true);
     }
 }

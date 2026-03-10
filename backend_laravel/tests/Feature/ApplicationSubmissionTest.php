@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Application;
+use App\Models\SystemSetting;
 use App\Models\User;
 use App\Notifications\ApplicationSubmittedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -119,5 +120,57 @@ class ApplicationSubmissionTest extends TestCase
 
         $response = $this->patch('/api/applications/' . $application->id, $this->payload());
         $response->assertForbidden();
+    }
+
+    public function test_user_cannot_create_application_when_submission_disabled(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'role' => 'user',
+        ]);
+
+        SystemSetting::setBoolean(SystemSetting::KEY_APPLICATION_SUBMISSION_ENABLED, false);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->post('/api/applications', $this->payload());
+        $response->assertForbidden();
+    }
+
+    public function test_user_cannot_resubmit_application_when_submission_disabled(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'role' => 'user',
+        ]);
+
+        $application = Application::create(array_merge($this->payload(), [
+            'user_id' => $user->id,
+            'status' => Application::STATUS_REVISION,
+        ]));
+
+        SystemSetting::setBoolean(SystemSetting::KEY_APPLICATION_SUBMISSION_ENABLED, false);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->patch('/api/applications/' . $application->id, $this->payload());
+        $response->assertForbidden();
+    }
+
+    public function test_user_can_read_submission_settings(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'role' => 'user',
+        ]);
+
+        SystemSetting::setBoolean(SystemSetting::KEY_APPLICATION_SUBMISSION_ENABLED, false);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/application-submission-settings');
+        $response->assertOk()->assertJson([
+            'enabled' => false,
+        ]);
     }
 }
