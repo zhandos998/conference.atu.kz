@@ -36,6 +36,7 @@ const toReportFileUrl = (path) => `${apiOrigin}/storage/${path}`;
 export default function ModeratorDashboard({ onLogout }) {
   const [status, setStatus] = useState('');
   const [direction, setDirection] = useState('');
+  const [receipt, setReceipt] = useState('');
   const [items, setItems] = useState([]);
   const [pagination, setPagination] = useState({ currentPage: 1, lastPage: 1, from: 0, to: 0, total: 0 });
   const [errorModal, setErrorModal] = useState({ open: false, message: '' });
@@ -43,10 +44,16 @@ export default function ModeratorDashboard({ onLogout }) {
   const [submissionEnabled, setSubmissionEnabled] = useState(true);
   const [settingsSaving, setSettingsSaving] = useState(false);
 
-  const load = async (nextPage = pagination.currentPage, nextStatus = status, nextDirection = direction) => {
+  const load = async (
+    nextPage = pagination.currentPage,
+    nextStatus = status,
+    nextDirection = direction,
+    nextReceipt = receipt,
+  ) => {
     const params = { page: nextPage };
     if (nextStatus) params.status = nextStatus;
     if (nextDirection) params.direction = nextDirection;
+    if (nextReceipt) params.receipt = nextReceipt;
 
     const { data } = await api.get('/moderator/applications', { params });
 
@@ -68,7 +75,7 @@ export default function ModeratorDashboard({ onLogout }) {
   useEffect(() => {
     const bootstrap = async () => {
       await Promise.all([
-        load(1, '', ''),
+        load(1, '', '', ''),
         loadSubmissionSettings(),
       ]);
     };
@@ -76,8 +83,8 @@ export default function ModeratorDashboard({ onLogout }) {
     bootstrap();
   }, []);
 
-  const openStatusModal = (id, newStatus) => {
-    setStatusModal({ open: true, applicationId: id, newStatus, comment: '' });
+  const openStatusModal = (id, newStatus, currentComment = '') => {
+    setStatusModal({ open: true, applicationId: id, newStatus, comment: currentComment || '' });
   };
 
   const closeStatusModal = () => {
@@ -91,7 +98,7 @@ export default function ModeratorDashboard({ onLogout }) {
         moderator_comment: statusModal.comment,
       });
       closeStatusModal();
-      await load(pagination.currentPage, status, direction);
+      await load(pagination.currentPage, status, direction, receipt);
     } catch (err) {
       setErrorModal({ open: true, message: err.response?.data?.message || 'Не удалось изменить статус заявки.' });
     }
@@ -121,12 +128,17 @@ export default function ModeratorDashboard({ onLogout }) {
 
   const changeStatusFilter = (nextStatus) => {
     setStatus(nextStatus);
-    load(1, nextStatus, direction);
+    load(1, nextStatus, direction, receipt);
   };
 
   const changeDirectionFilter = (nextDirection) => {
     setDirection(nextDirection);
-    load(1, status, nextDirection);
+    load(1, status, nextDirection, receipt);
+  };
+
+  const changeReceiptFilter = (nextReceipt) => {
+    setReceipt(nextReceipt);
+    load(1, status, direction, nextReceipt);
   };
 
   const goToPage = (page) => {
@@ -134,7 +146,7 @@ export default function ModeratorDashboard({ onLogout }) {
       return;
     }
 
-    load(page, status, direction);
+    load(page, status, direction, receipt);
   };
 
   const toggleSubmission = async () => {
@@ -167,10 +179,12 @@ export default function ModeratorDashboard({ onLogout }) {
         }
       >
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <div className="field" style={{ maxWidth: 420, minWidth: 260 }}>
+          <div className="field submission-toggle" style={{ maxWidth: 420, minWidth: 260 }}>
             <label>Прием заявок</label>
-            <div className="inline-actions">
-              <span>{submissionEnabled ? 'Включен' : 'Отключен'}</span>
+            <div className="submission-toggle-row">
+              <span className={`submission-toggle-status ${submissionEnabled ? 'is-enabled' : 'is-disabled'}`}>
+                {submissionEnabled ? 'Включен' : 'Отключен'}
+              </span>
               <button className="btn-secondary" type="button" disabled={settingsSaving} onClick={toggleSubmission}>
                 {settingsSaving ? 'Сохранение...' : (submissionEnabled ? 'Отключить' : 'Включить')}
               </button>
@@ -197,6 +211,15 @@ export default function ModeratorDashboard({ onLogout }) {
               ))}
             </select>
           </div>
+
+          <div className="field" style={{ maxWidth: 320, minWidth: 260 }}>
+            <label>Фильтр по чеку</label>
+            <select value={receipt} onChange={(e) => changeReceiptFilter(e.target.value)}>
+              <option value="">Все</option>
+              <option value="with">С чеком</option>
+              <option value="without">Без чека</option>
+            </select>
+          </div>
         </div>
 
         <p className="muted">Страница {pagination.currentPage} из {pagination.lastPage}. Показано {pagination.to} из {pagination.total} заявок.</p>
@@ -220,7 +243,7 @@ export default function ModeratorDashboard({ onLogout }) {
                 <th>Форма участия</th>
                 <th>Бронирование гостиницы</th>
                 <th>Оплата</th>
-                <th>Подпись</th>
+                <th>Комментарий модератора</th>
                 <th>Файл доклада</th>
                 <th>Статус</th>
                 <th>Действия</th>
@@ -258,14 +281,14 @@ export default function ModeratorDashboard({ onLogout }) {
                         </div>
                       ) : 'Чек не отправлен'}
                     </td>
-                    <td></td>
+                    <td style={{ minWidth: 220, whiteSpace: 'pre-wrap' }}>{app.moderator_comment || '-'}</td>
                     <td>{app.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">ФАЙЛ доклада</a> : 'Файл не загружен'}</td>
                     <td><span className={statusClass[app.status] || statusClass.pending}>{statusLabel[app.status] || app.status}</span></td>
                     <td>
                       <div className="actions">
-                        <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'accepted')}>Принять</button>
-                        <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'revision')}>На доработку</button>
-                        <button className="btn-danger" onClick={() => openStatusModal(app.id, 'rejected')}>Отказать</button>
+                        <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'accepted', app.moderator_comment)}>Принять</button>
+                        <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'revision', app.moderator_comment)}>На доработку</button>
+                        <button className="btn-danger" onClick={() => openStatusModal(app.id, 'rejected', app.moderator_comment)}>Отказать</button>
                       </div>
                     </td>
                   </tr>

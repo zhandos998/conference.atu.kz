@@ -43,6 +43,7 @@ class ModeratorApplicationController extends Controller
         $this->authorize('moderate', Application::class);
 
         $query = Application::query()->with('user')->latest();
+        $receipt = (string) $request->query('receipt', '');
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
@@ -50,6 +51,18 @@ class ModeratorApplicationController extends Controller
 
         if ($request->filled('direction')) {
             $query->where('direction', $request->string('direction'));
+        }
+
+        if ($receipt === 'with') {
+            $query->whereNotNull('payment_receipt_path')
+                ->where('payment_receipt_path', '!=', '');
+        }
+
+        if ($receipt === 'without') {
+            $query->where(function ($builder) {
+                $builder->whereNull('payment_receipt_path')
+                    ->orWhere('payment_receipt_path', '');
+            });
         }
 
         return response()->json($query->paginate(20));

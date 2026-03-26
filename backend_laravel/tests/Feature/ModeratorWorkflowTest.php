@@ -116,4 +116,39 @@ class ModeratorWorkflowTest extends TestCase
                 'enabled' => false,
             ]);
     }
+
+    public function test_moderator_can_filter_applications_by_receipt_presence(): void
+    {
+        $moderator = User::factory()->create([
+            'role' => 'moderator',
+            'email_verified_at' => now(),
+        ]);
+
+        $user = User::factory()->create([
+            'role' => 'user',
+            'email_verified_at' => now(),
+        ]);
+
+        $withReceipt = Application::create(array_merge($this->applicationPayload($user), [
+            'email' => 'with-receipt@example.com',
+            'payment_receipt_path' => 'receipts/with.pdf',
+        ]));
+
+        $withoutReceipt = Application::create(array_merge($this->applicationPayload($user), [
+            'email' => 'without-receipt@example.com',
+            'payment_receipt_path' => null,
+        ]));
+
+        Sanctum::actingAs($moderator);
+
+        $this->getJson('/api/moderator/applications?receipt=with')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $withReceipt->id);
+
+        $this->getJson('/api/moderator/applications?receipt=without')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $withoutReceipt->id);
+    }
 }
