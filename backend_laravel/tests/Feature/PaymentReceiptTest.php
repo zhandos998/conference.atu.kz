@@ -33,6 +33,7 @@ class PaymentReceiptTest extends TestCase
             'supervisor_full_name' => 'Петров П.П.',
             'supervisor_organization_position' => 'доцент',
             'supervisor_academic_degree' => 'к.т.н.',
+            'department' => 'IT',
             'report_title' => 'Доклад 1',
             'direction' => 'Направление 1',
             'participation_form' => 'Очно',

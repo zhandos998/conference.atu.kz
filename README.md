@@ -32,6 +32,44 @@ npm i axios
 npm run dev
 ```
 
+## Production Docker setup
+
+Create the deployment env file:
+```bash
+cp .env.example .env
+```
+
+Generate a stable Laravel application key and put it into `APP_KEY`:
+```bash
+cd backend_laravel
+php artisan key:generate --show
+```
+
+Before starting containers, edit the root `.env`:
+- replace `MYSQL_PASSWORD` and `MYSQL_ROOT_PASSWORD` with long random values
+- set `APP_URL` and `FRONTEND_URL` to the public domain
+- set `FRONTEND_PORT` to the host port nginx should expose, usually `80`
+- configure real `MAIL_*` values if registration/reset/status emails must be sent; the default `MAIL_MAILER=log` only writes emails to logs
+
+Start the production stack:
+```bash
+docker compose up -d --build
+```
+
+After startup:
+- Frontend: `http://localhost` or the configured public domain
+- API through nginx: `/api`
+- Admin pages through nginx: `/admin/login`
+
+The Docker setup uses MySQL in the `mysql_data` volume and Laravel uploads/cache in the `backend_storage` volume. The backend container waits for MySQL, runs migrations, creates the Laravel storage link, and caches Laravel config/views on startup.
+
+For production safety, only the frontend nginx port is published by default. MySQL and the Laravel Apache container stay on the internal Docker network.
+
+To remove Docker data and start with a clean database:
+```bash
+docker compose down -v
+```
+
 ## REST API examples
 - `POST /api/auth/register`
 - `POST /api/auth/login`
