@@ -1,0 +1,60 @@
+# Conference ATU production deploy commands
+
+# 1. Local machine: push the latest repository state to GitHub.
+git status --short
+git add docker-compose.yml .env.example DEPLOY_COMMANDS.txt
+git commit -m "Add production phpMyAdmin deployment"
+git push origin main
+
+# 2. Local machine: connect to the server.
+ssh zhagparovr@172.20.252.171
+
+# 3. Server: install Docker, Docker Compose plugin, and Git if they are missing.
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl git
+if ! command -v docker >/dev/null 2>&1; then
+  curl -fsSL https://get.docker.com | sudo sh
+fi
+sudo systemctl enable --now docker
+sudo usermod -aG docker "$USER"
+
+# If docker commands still ask for sudo after usermod, log out and SSH in again.
+
+# 4. Server: clone or update the project from GitHub.
+sudo mkdir -p /opt
+sudo chown "$USER:$USER" /opt
+cd /opt
+if [ ! -d conference.atu.kz/.git ]; then
+  git clone https://github.com/zhandos998/conference.atu.kz.git conference.atu.kz
+else
+  cd conference.atu.kz
+  git pull --ff-only origin main
+  cd ..
+fi
+cd /opt/conference.atu.kz
+
+# 5. Server: create production .env with generated secrets.
+cp -n .env.example .env
+APP_KEY="base64:$(openssl rand -base64 32)"
+MYSQL_PASSWORD="$(openssl rand -hex 24)"
+MYSQL_ROOT_PASSWORD="$(openssl rand -hex 24)"
+sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
+sed -i "s|^APP_URL=.*|APP_URL=http://172.20.252.171|" .env
+sed -i "s|^FRONTEND_URL=.*|FRONTEND_URL=http://172.20.252.171|" .env
+sed -i "s|^FRONTEND_PORT=.*|FRONTEND_PORT=80|" .env
+sed -i "s|^DB_PASSWORD=.*|DB_PASSWORD=${MYSQL_PASSWORD}|" .env
+sed -i "s|^MYSQL_PASSWORD=.*|MYSQL_PASSWORD=${MYSQL_PASSWORD}|" .env
+sed -i "s|^MYSQL_ROOT_PASSWORD=.*|MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}|" .env
+grep -q '^PHPMYADMIN_PORT=' .env && sed -i "s|^PHPMYADMIN_PORT=.*|PHPMYADMIN_PORT=8080|" .env || echo "PHPMYADMIN_PORT=8080" >> .env
+chmod 600 .env
+
+# 6. Server: build and start production containers.
+docker compose up -d --build
+docker compose ps
+
+# 7. Local machine: open phpMyAdmin through an SSH tunnel.
+ssh -L 8080:127.0.0.1:8080 zhagparovr@172.20.252.171
+
+# Then open:
+# Site:       http://172.20.252.171
+# phpMyAdmin: http://127.0.0.1:8080
