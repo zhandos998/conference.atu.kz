@@ -39,22 +39,65 @@ APP_KEY="base64:$(openssl rand -base64 32)"
 MYSQL_PASSWORD="$(openssl rand -hex 24)"
 MYSQL_ROOT_PASSWORD="$(openssl rand -hex 24)"
 sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
-sed -i "s|^APP_URL=.*|APP_URL=http://172.20.252.171|" .env
-sed -i "s|^FRONTEND_URL=.*|FRONTEND_URL=http://172.20.252.171|" .env
-sed -i "s|^FRONTEND_PORT=.*|FRONTEND_PORT=80|" .env
+sed -i "s|^APP_URL=.*|APP_URL=https://conference.atu.kz|" .env
+sed -i "s|^FRONTEND_URL=.*|FRONTEND_URL=https://conference.atu.kz|" .env
+grep -q '^FRONTEND_BIND=' .env && sed -i "s|^FRONTEND_BIND=.*|FRONTEND_BIND=127.0.0.1|" .env || echo "FRONTEND_BIND=127.0.0.1" >> .env
+sed -i "s|^FRONTEND_PORT=.*|FRONTEND_PORT=8094|" .env
 sed -i "s|^DB_PASSWORD=.*|DB_PASSWORD=${MYSQL_PASSWORD}|" .env
 sed -i "s|^MYSQL_PASSWORD=.*|MYSQL_PASSWORD=${MYSQL_PASSWORD}|" .env
 sed -i "s|^MYSQL_ROOT_PASSWORD=.*|MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}|" .env
-grep -q '^PHPMYADMIN_PORT=' .env && sed -i "s|^PHPMYADMIN_PORT=.*|PHPMYADMIN_PORT=8080|" .env || echo "PHPMYADMIN_PORT=8080" >> .env
+grep -q '^PHPMYADMIN_PORT=' .env && sed -i "s|^PHPMYADMIN_PORT=.*|PHPMYADMIN_PORT=8095|" .env || echo "PHPMYADMIN_PORT=8095" >> .env
 chmod 600 .env
 
 # 6. Server: build and start production containers.
 docker compose up -d --build
 docker compose ps
 
-# 7. Local machine: open phpMyAdmin through an SSH tunnel.
-ssh -L 8080:127.0.0.1:8080 zhagparovr@172.20.252.171
+# 7. Server: configure system nginx for the public domain.
+sudo tee /etc/nginx/sites-available/conference.atu.kz >/dev/null <<'NGINX'
+server {
+    listen 80;
+    listen [::]:80;
+    server_name conference.atu.kz www.conference.atu.kz;
+
+    return 301 https://conference.atu.kz$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name conference.atu.kz www.conference.atu.kz;
+
+    ssl_certificate /etc/ssl/atussl/ssl-bundle.crt;
+    ssl_certificate_key /etc/ssl/atussl/atu.key;
+    ssl_prefer_server_ciphers on;
+
+    client_max_body_size 64m;
+
+    access_log /var/log/nginx/conference_access.log;
+    error_log /var/log/nginx/conference_error.log;
+
+    location / {
+        proxy_pass http://127.0.0.1:8094;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+NGINX
+sudo ln -sfn /etc/nginx/sites-available/conference.atu.kz /etc/nginx/sites-enabled/conference.atu.kz
+sudo nginx -t
+sudo systemctl reload nginx
+
+# 8. Local machine: open phpMyAdmin through an SSH tunnel.
+ssh -L 8095:127.0.0.1:8095 zhagparovr@172.20.252.171
 
 # Then open:
-# Site:       http://172.20.252.171
-# phpMyAdmin: http://127.0.0.1:8080
+# Site:       https://conference.atu.kz
+# phpMyAdmin: http://127.0.0.1:8095
