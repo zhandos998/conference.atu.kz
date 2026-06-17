@@ -101,3 +101,5 @@ ssh -L 8095:127.0.0.1:8095 zhagparovr@172.20.252.171
 # Then open:
 # Site:       https://conference.atu.kz
 # phpMyAdmin: http://127.0.0.1:8095
+# phpMyAdmin login is in the server .env:
+# cd /opt/conference.atu.kz && grep -E '^(MYSQL_USER|MYSQL_PASSWORD|MYSQL_ROOT_PASSWORD)=' .env
