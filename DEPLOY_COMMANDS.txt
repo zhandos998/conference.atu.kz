@@ -103,3 +103,9 @@ ssh -L 8095:127.0.0.1:8095 zhagparovr@172.20.252.171
 # phpMyAdmin: http://127.0.0.1:8095
 # phpMyAdmin login is in the server .env:
 # cd /opt/conference.atu.kz && grep -E '^(MYSQL_USER|MYSQL_PASSWORD|MYSQL_ROOT_PASSWORD)=' .env
+
+# DNS note:
+# The server public IP is 206.62.55.202. The A record for conference.atu.kz
+# must point to 206.62.55.202 before the public domain shows this deployment.
+# Test before DNS changes:
+# curl -k --resolve conference.atu.kz:443:206.62.55.202 https://conference.atu.kz/
