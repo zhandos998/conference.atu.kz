@@ -3,15 +3,16 @@
 # 1. Local machine: push the latest repository state to GitHub.
 git status --short
 git add .
-git commit -m "Flatten Laravel React app structure"
+git commit -m "Update conference app"
 git push origin main
+# If there is "nothing to commit", just run git push origin main.
 
 # 2. Local machine: connect to the server.
 ssh zhagparovr@172.20.252.171
 
-# 3. Server: install Docker, Docker Compose plugin, and Git if they are missing.
+# 3. Server: install Docker, Docker Compose plugin, Git, and nginx if they are missing.
 sudo apt-get update
-sudo apt-get install -y ca-certificates curl git
+sudo apt-get install -y ca-certificates curl git nginx
 if ! command -v docker >/dev/null 2>&1; then
   curl -fsSL https://get.docker.com | sudo sh
 fi
@@ -54,6 +55,11 @@ chmod 600 .env
 # React app is merged into the Laravel image. The mysql_data volume is kept.
 docker compose up -d --build --remove-orphans
 docker compose ps
+
+# Later updates after a new GitHub push:
+# cd /opt/conference.atu.kz
+# git pull --ff-only origin main
+# docker compose up -d --build --remove-orphans
 
 # 7. Server: configure system nginx for the public domain.
 sudo tee /etc/nginx/sites-available/conference.atu.kz >/dev/null <<'NGINX'
