@@ -33,7 +33,7 @@ export default function ResetPasswordPage({ token, email, onBackToLogin }) {
   };
 
   return (
-    <AppLayout title="Сброс пароля" subtitle="Укажите новый пароль для входа в систему">
+    <AppLayout variant="auth" title="Сброс пароля" subtitle="Укажите новый пароль для входа в систему">
       {missingToken ? (
         <>
           <p className="error-text">Токен сброса отсутствует или устарел. Запросите ссылку повторно.</p>

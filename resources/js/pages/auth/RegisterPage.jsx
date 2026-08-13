@@ -19,7 +19,7 @@ export default function RegisterPage({ onSwitch }) {
   };
 
   return (
-    <AppLayout title="Регистрация" subtitle="Создайте аккаунт участника конференции">
+    <AppLayout variant="auth" title="Регистрация" subtitle="Создайте аккаунт участника конференции">
       <form onSubmit={submit} className="auth-form">
         <div className="field">
           <label>Имя</label>

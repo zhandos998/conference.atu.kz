@@ -63,6 +63,12 @@ const toForm = (application) => ({
 const apiBaseUrl = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
 const apiOrigin = new URL(apiBaseUrl, window.location.origin).origin;
 const toReportFileUrl = (path) => `${apiOrigin}/storage/${path}`;
+const viewTitle = {
+  list: 'Мои заявки',
+  create: 'Новая заявка',
+  detail: 'Просмотр заявки',
+  edit: 'Редактирование заявки',
+};
 
 export default function UserDashboard({ onLogout }) {
   const [view, setView] = useState('list');
@@ -77,6 +83,12 @@ export default function UserDashboard({ onLogout }) {
 
   const openNotice = (title, msg) => setNoticeModal({ open: true, title, message: msg });
   const closeNotice = () => setNoticeModal({ open: false, title: '', message: '' });
+  const applicationStats = applications.reduce((acc, application) => {
+    acc.total += 1;
+    acc[application.status] = (acc[application.status] || 0) + 1;
+
+    return acc;
+  }, { total: 0, pending: 0, accepted: 0, revision: 0, rejected: 0 });
 
   const loadApplications = async () => {
     const { data } = await api.get('/applications');
@@ -244,9 +256,10 @@ export default function UserDashboard({ onLogout }) {
   };
 
   const renderApplicationForm = (onSubmit, submitLabel) => (
-    <form onSubmit={onSubmit}>
+    <form onSubmit={onSubmit} className="application-form">
       {!submissionEnabled && <p className="error-text">Прием заявок временно отключен менеджером.</p>}
 
+      <div className="form-section-title">{view === 'edit' ? 'Обновите данные доклада' : 'Заполните данные участника и доклада'}</div>
       <div className="grid">
         <div className="field">
           <label>Ф.И.О.</label>
@@ -325,19 +338,30 @@ export default function UserDashboard({ onLogout }) {
     <>
       {!submissionEnabled && <p className="error-text">Прием заявок сейчас отключен менеджером.</p>}
 
-      <div className="inline-actions">
+      <div className="list-toolbar">
+        <div>
+          <h2>{viewTitle.list}</h2>
+          <p className="muted">Всего заявок: {applicationStats.total}</p>
+        </div>
         <button className="btn-primary" type="button" onClick={goToCreate} disabled={!submissionEnabled}>Добавить заявку</button>
       </div>
 
       {applications.length === 0 ? (
-        <p>Пока нет заявок.</p>
+        <div className="empty-state">
+          <h3>Пока нет заявок</h3>
+          <p>После отправки доклада здесь появятся статус, дата создания и ссылка на карточку заявки.</p>
+        </div>
       ) : (
         <div className="list">
           {applications.map((app) => (
             <div key={app.id} className="app-item">
-              <p><strong>{app.report_title}</strong></p>
-              <p><strong>Дата:</strong> {new Date(app.created_at).toLocaleString('ru-RU')}</p>
-              <p><strong>Статус:</strong> <span className={statusClass[app.status] || statusClass.pending}>{statusLabel[app.status] || app.status}</span></p>
+              <div className="app-item-head">
+                <div>
+                  <h3 className="app-title">{app.report_title}</h3>
+                  <p className="app-meta">{new Date(app.created_at).toLocaleString('ru-RU')}</p>
+                </div>
+                <span className={statusClass[app.status] || statusClass.pending}>{statusLabel[app.status] || app.status}</span>
+              </div>
               <div className="inline-actions">
                 <button className="btn-secondary" type="button" onClick={() => openApplication(app.id)}>Открыть заявку</button>
               </div>
@@ -362,28 +386,40 @@ export default function UserDashboard({ onLogout }) {
           <button className="btn-primary" type="button" onClick={goToEdit} disabled={!submissionEnabled}>Изменить заявку</button>
         </div>
 
-        <div className="app-item" style={{ marginTop: 12 }}>
-          <p><strong>Ф.И.О.:</strong> {selectedApplication.full_name}</p>
-          <p><strong>Место учебы/работы и должность:</strong> {selectedApplication.organization_position}</p>
-          <p><strong>Ученая степень:</strong> {selectedApplication.academic_degree}</p>
-          <p><strong>Телефон:</strong> {selectedApplication.phone}</p>
-          <p><strong>Email:</strong> {selectedApplication.email}</p>
-          <p><strong>Ф.И.О. научного руководителя:</strong> {selectedApplication.supervisor_full_name}</p>
-          <p><strong>Должность научного руководителя:</strong> {selectedApplication.supervisor_organization_position}</p>
-          <p><strong>Степень научного руководителя:</strong> {selectedApplication.supervisor_academic_degree}</p>
-          <p><strong>Кафедра:</strong> {selectedApplication.department}</p>
-          <p><strong>Название доклада:</strong> {selectedApplication.report_title}</p>
-          <p><strong>Направление:</strong> {selectedApplication.direction}</p>
-          <p><strong>Форма участия:</strong> {selectedApplication.participation_form}</p>
-          <p><strong>Бронирование гостиницы:</strong> {selectedApplication.hotel_booking_needed ? 'Да' : 'Нет'}</p>
-          <p><strong>Дата создания:</strong> {selectedApplication.created_at ? new Date(selectedApplication.created_at).toLocaleString('ru-RU') : '-'}</p>
-          <p><strong>Файл доклада:</strong> {selectedApplication.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">Открыть файл</a> : 'Файл не загружен'}</p>
-          <p><strong>Статус:</strong> <span className={statusClass[selectedApplication.status] || statusClass.pending}>{statusLabel[selectedApplication.status] || selectedApplication.status}</span></p>
-          <p><strong>Комментарий модератора:</strong> {selectedApplication.moderator_comment || '-'}</p>
+        <div className="detail-panel">
+          <div className="detail-head">
+            <div>
+              <p className="section-kicker">Заявка #{selectedApplication.id}</p>
+              <h2>{selectedApplication.report_title}</h2>
+            </div>
+            <span className={statusClass[selectedApplication.status] || statusClass.pending}>{statusLabel[selectedApplication.status] || selectedApplication.status}</span>
+          </div>
+
+          <div className="detail-grid">
+            <div><span>Ф.И.О.</span><strong>{selectedApplication.full_name}</strong></div>
+            <div><span>Место учебы/работы и должность</span><strong>{selectedApplication.organization_position}</strong></div>
+            <div><span>Ученая степень</span><strong>{selectedApplication.academic_degree}</strong></div>
+            <div><span>Телефон</span><strong>{selectedApplication.phone}</strong></div>
+            <div><span>Email</span><strong>{selectedApplication.email}</strong></div>
+            <div><span>Научный руководитель</span><strong>{selectedApplication.supervisor_full_name}</strong></div>
+            <div><span>Должность руководителя</span><strong>{selectedApplication.supervisor_organization_position}</strong></div>
+            <div><span>Степень руководителя</span><strong>{selectedApplication.supervisor_academic_degree}</strong></div>
+            <div><span>Кафедра</span><strong>{selectedApplication.department}</strong></div>
+            <div><span>Направление</span><strong>{selectedApplication.direction}</strong></div>
+            <div><span>Форма участия</span><strong>{selectedApplication.participation_form}</strong></div>
+            <div><span>Бронирование гостиницы</span><strong>{selectedApplication.hotel_booking_needed ? 'Да' : 'Нет'}</strong></div>
+            <div><span>Дата создания</span><strong>{selectedApplication.created_at ? new Date(selectedApplication.created_at).toLocaleString('ru-RU') : '-'}</strong></div>
+            <div><span>Файл доклада</span><strong>{selectedApplication.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">Открыть файл</a> : 'Файл не загружен'}</strong></div>
+          </div>
+
+          <div className="comment-panel">
+            <span>Комментарий модератора</span>
+            <p>{selectedApplication.moderator_comment || '-'}</p>
+          </div>
         </div>
 
         {selectedApplication.status === 'accepted' && (
-          <form onSubmit={submitPaymentReceipt} style={{ marginTop: 12 }}>
+          <form onSubmit={submitPaymentReceipt} className="receipt-upload-panel">
             <div className="field" style={{ maxWidth: 420 }}>
               <label>Загрузка чека об оплате</label>
               <input type="file" onChange={(e) => setPaymentReceipt(e.target.files?.[0] || null)} />
@@ -404,11 +440,21 @@ export default function UserDashboard({ onLogout }) {
         subtitle="Личный раздел участника конференции"
         actions={<button className="btn-danger" onClick={onLogout}>Выйти</button>}
       >
-        <p>
-          <strong>Контакты департамента науки:</strong> 050012, г. Алматы, ул. Толе би, 100,
-          Алматинский технологический университет, Департамент науки, каб. 617, 615, 1106,
-          вн. т. 243, 139, e-mail: conference2@atu.edu.kz
-        </p>
+        <div className="info-panel">
+          <div>
+            <p className="section-kicker">Департамент науки</p>
+            <h2>Контакты оргкомитета</h2>
+            <p>050012, г. Алматы, ул. Толе би, 100, Алматинский технологический университет, каб. 617, 615, 1106, вн. т. 243, 139.</p>
+          </div>
+          <a className="contact-link" href="mailto:conference2@atu.edu.kz">conference2@atu.edu.kz</a>
+        </div>
+
+        <div className="summary-grid">
+          <div className="summary-item"><span>Всего</span><strong>{applicationStats.total}</strong></div>
+          <div className="summary-item"><span>На рассмотрении</span><strong>{applicationStats.pending}</strong></div>
+          <div className="summary-item"><span>Принято</span><strong>{applicationStats.accepted}</strong></div>
+          <div className="summary-item"><span>На доработку</span><strong>{applicationStats.revision}</strong></div>
+        </div>
 
         {message && <p>{message}</p>}
         {error && <p className="error-text">{error}</p>}

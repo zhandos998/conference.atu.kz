@@ -20,7 +20,7 @@ export default function LoginPage({ onLogin, onSwitch, onForgotPassword }) {
   };
 
   return (
-    <AppLayout title="Вход" subtitle="Система регистрации участников научной конференции">
+    <AppLayout variant="auth" title="Вход" subtitle="Система регистрации участников научной конференции">
       <form onSubmit={submit} className="auth-form">
         <div className="field">
           <label>Email</label>

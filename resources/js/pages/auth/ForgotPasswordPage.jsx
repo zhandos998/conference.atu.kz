@@ -21,7 +21,7 @@ export default function ForgotPasswordPage({ onBackToLogin }) {
   };
 
   return (
-    <AppLayout title="Восстановление пароля" subtitle="Введите email, указанный при регистрации">
+    <AppLayout variant="auth" title="Восстановление пароля" subtitle="Введите email, указанный при регистрации">
       <form onSubmit={submit} className="auth-form">
         <div className="field">
           <label>Email</label>

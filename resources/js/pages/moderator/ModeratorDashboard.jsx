@@ -43,6 +43,12 @@ export default function ModeratorDashboard({ onLogout }) {
   const [statusModal, setStatusModal] = useState({ open: false, applicationId: null, newStatus: 'pending', comment: '' });
   const [submissionEnabled, setSubmissionEnabled] = useState(true);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const currentPageStats = items.reduce((acc, application) => {
+    acc[application.status] = (acc[application.status] || 0) + 1;
+
+    return acc;
+  }, { pending: 0, accepted: 0, revision: 0, rejected: 0 });
+  const activeFilterCount = [status, direction, receipt].filter(Boolean).length;
 
   const load = async (
     nextPage = pagination.currentPage,
@@ -172,14 +178,14 @@ export default function ModeratorDashboard({ onLogout }) {
         subtitle="Управление анкетами участников"
         wide
         actions={
-          <div style={{ display: 'flex', gap: 8 }}>
+          <>
             <button className="btn-primary" onClick={exportExcel}>Экспорт в Excel</button>
             <button className="btn-danger" onClick={onLogout}>Выйти</button>
-          </div>
+          </>
         }
       >
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <div className="field submission-toggle" style={{ maxWidth: 420, minWidth: 260 }}>
+        <div className="filter-panel">
+          <div className="field submission-toggle control-field control-field-wide">
             <label>Прием заявок</label>
             <div className="submission-toggle-row">
               <span className={`submission-toggle-status ${submissionEnabled ? 'is-enabled' : 'is-disabled'}`}>
@@ -191,7 +197,7 @@ export default function ModeratorDashboard({ onLogout }) {
             </div>
           </div>
 
-          <div className="field" style={{ maxWidth: 320, minWidth: 260 }}>
+          <div className="field control-field">
             <label>Фильтр по статусу</label>
             <select value={status} onChange={(e) => changeStatusFilter(e.target.value)}>
               <option value="">Все</option>
@@ -202,7 +208,7 @@ export default function ModeratorDashboard({ onLogout }) {
             </select>
           </div>
 
-          <div className="field" style={{ maxWidth: 520, minWidth: 260 }}>
+          <div className="field control-field control-field-wide">
             <label>Фильтр по направлению</label>
             <select value={direction} onChange={(e) => changeDirectionFilter(e.target.value)}>
               <option value="">Все направления</option>
@@ -212,7 +218,7 @@ export default function ModeratorDashboard({ onLogout }) {
             </select>
           </div>
 
-          <div className="field" style={{ maxWidth: 320, minWidth: 260 }}>
+          <div className="field control-field">
             <label>Фильтр по чеку</label>
             <select value={receipt} onChange={(e) => changeReceiptFilter(e.target.value)}>
               <option value="">Все</option>
@@ -222,7 +228,15 @@ export default function ModeratorDashboard({ onLogout }) {
           </div>
         </div>
 
-        <p className="muted">Страница {pagination.currentPage} из {pagination.lastPage}. Показано {pagination.to} из {pagination.total} заявок.</p>
+        <div className="summary-grid summary-grid-compact">
+          <div className="summary-item"><span>Фильтров</span><strong>{activeFilterCount}</strong></div>
+          <div className="summary-item"><span>На рассмотрении</span><strong>{currentPageStats.pending}</strong></div>
+          <div className="summary-item"><span>Принято</span><strong>{currentPageStats.accepted}</strong></div>
+          <div className="summary-item"><span>На доработку</span><strong>{currentPageStats.revision}</strong></div>
+          <div className="summary-item"><span>Отклонено</span><strong>{currentPageStats.rejected}</strong></div>
+        </div>
+
+        <p className="muted table-summary">Страница {pagination.currentPage} из {pagination.lastPage}. Показано {pagination.to} из {pagination.total} заявок.</p>
 
         <div className="table-wrap">
           <table>
@@ -250,6 +264,17 @@ export default function ModeratorDashboard({ onLogout }) {
               </tr>
             </thead>
             <tbody>
+              {items.length === 0 && (
+                <tr>
+                  <td colSpan="19">
+                    <div className="empty-state empty-state-table">
+                      <h3>Заявок не найдено</h3>
+                      <p>Измените фильтры или проверьте прием новых заявок.</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+
               {items.map((app) => {
                 const receiptPath = app.payment_receipt_path;
                 const receiptUrl = receiptPath ? toReceiptUrl(receiptPath) : '';
@@ -273,10 +298,10 @@ export default function ModeratorDashboard({ onLogout }) {
                     <td>{app.hotel_booking_needed ? 'Да' : 'Нет'}</td>
                     <td>
                       {receiptPath ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 280 }}>
-                          <a href={receiptUrl} target="_blank" rel="noreferrer">ФАЙЛ чека</a>
-                          {isImagePath(receiptPath) && <img src={receiptUrl} alt="Чек" style={{ width: 260, maxWidth: '100%', border: '1px solid #cbd5e1', borderRadius: 6 }} />}
-                          {isPdfPath(receiptPath) && <iframe title={`receipt-${app.id}`} src={`${receiptUrl}#page=1`} style={{ width: 260, height: 320, border: '1px solid #cbd5e1', borderRadius: 6 }} />}
+                        <div className="receipt-preview">
+                          <a className="receipt-link" href={receiptUrl} target="_blank" rel="noreferrer">ФАЙЛ чека</a>
+                          {isImagePath(receiptPath) && <img className="receipt-media" src={receiptUrl} alt="Чек" />}
+                          {isPdfPath(receiptPath) && <iframe className="receipt-frame" title={`receipt-${app.id}`} src={`${receiptUrl}#page=1`} />}
                           {!isImagePath(receiptPath) && !isPdfPath(receiptPath) && <span>Предпросмотр недоступен для этого формата</span>}
                         </div>
                       ) : 'Чек не отправлен'}
@@ -298,7 +323,7 @@ export default function ModeratorDashboard({ onLogout }) {
           </table>
         </div>
 
-        <div className="inline-actions" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="pagination-row">
           <div className="muted">Показано {pagination.from || 0}-{pagination.to || 0} из {pagination.total} заявок</div>
           <div className="actions">
             <button className="btn-secondary" type="button" disabled={pagination.currentPage <= 1} onClick={() => goToPage(pagination.currentPage - 1)}>Назад</button>
