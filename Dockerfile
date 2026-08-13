@@ -1,3 +1,15 @@
+FROM node:20-alpine AS assets
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY resources ./resources
+COPY public ./public
+COPY vite.config.js ./
+RUN npm run build
+
 FROM php:8.3-apache
 
 ENV COMPOSER_ALLOW_SUPERUSER=1
@@ -32,6 +44,7 @@ COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-scripts
 
 COPY . .
+COPY --from=assets /app/public/build ./public/build
 COPY docker/apache.conf /etc/apache2/sites-available/000-default.conf
 COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint
 COPY docker/php-prod.ini /usr/local/etc/php/conf.d/production.ini
@@ -46,7 +59,7 @@ RUN chmod +x /usr/local/bin/docker-entrypoint \
         storage/framework/sessions \
         storage/framework/views \
         storage/logs \
-    && chown -R www-data:www-data bootstrap/cache storage
+    && chown -R www-data:www-data bootstrap/cache storage public/build
 
 EXPOSE 80
 

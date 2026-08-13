@@ -4,8 +4,6 @@ use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\DashboardController;
 use Illuminate\Support\Facades\Route;
 
-Route::redirect('/', '/admin/login');
-
 Route::prefix('admin')->group(function () {
     Route::middleware('guest')->group(function () {
         Route::get('/login', [AuthController::class, 'showLogin'])->name('admin.login');
@@ -19,3 +17,6 @@ Route::prefix('admin')->group(function () {
         Route::get('/export', [DashboardController::class, 'export'])->name('admin.export');
     });
 });
+
+Route::view('/', 'app')->name('app');
+Route::view('/{any}', 'app')->where('any', '^(?!api|admin|storage|up).*$');

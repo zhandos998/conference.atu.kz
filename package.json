@@ -1,5 +1,5 @@
 {
-  "name": "conference-frontend",
+  "name": "conference-atu",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.4.1",
+    "laravel-vite-plugin": "^1.2.0",
     "vite": "^5.4.19"
   }
 }

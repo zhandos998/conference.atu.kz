@@ -2,8 +2,8 @@
 
 # 1. Local machine: push the latest repository state to GitHub.
 git status --short
-git add docker-compose.yml .env.example DEPLOY_COMMANDS.txt
-git commit -m "Add production phpMyAdmin deployment"
+git add .
+git commit -m "Flatten Laravel React app structure"
 git push origin main
 
 # 2. Local machine: connect to the server.
@@ -50,7 +50,9 @@ grep -q '^PHPMYADMIN_PORT=' .env && sed -i "s|^PHPMYADMIN_PORT=.*|PHPMYADMIN_POR
 chmod 600 .env
 
 # 6. Server: build and start production containers.
-docker compose up -d --build
+# --remove-orphans removes the old standalone frontend container after the
+# React app is merged into the Laravel image. The mysql_data volume is kept.
+docker compose up -d --build --remove-orphans
 docker compose ps
 
 # 7. Server: configure system nginx for the public domain.
