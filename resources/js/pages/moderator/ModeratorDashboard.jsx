@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/client';
-import AppLayout from '../../components/AppLayout';
 import Modal from '../../components/Modal';
 
 const statusClass = {
@@ -49,6 +48,14 @@ export default function ModeratorDashboard({ onLogout }) {
     return acc;
   }, { pending: 0, accepted: 0, revision: 0, rejected: 0 });
   const activeFilterCount = [status, direction, receipt].filter(Boolean).length;
+  const todayCount = items.filter((application) => {
+    if (!application.created_at) {
+      return false;
+    }
+
+    return new Date(application.created_at).toDateString() === new Date().toDateString();
+  }).length;
+  const receiptCount = items.filter((application) => application.payment_receipt_path).length;
 
   const load = async (
     nextPage = pagination.currentPage,
@@ -173,164 +180,232 @@ export default function ModeratorDashboard({ onLogout }) {
 
   return (
     <>
-      <AppLayout
-        title="Панель модератора"
-        subtitle="Управление анкетами участников"
-        wide
-        actions={
-          <>
-            <button className="btn-primary" onClick={exportExcel}>Экспорт в Excel</button>
-            <button className="btn-danger" onClick={onLogout}>Выйти</button>
-          </>
-        }
-      >
-        <div className="filter-panel">
-          <div className="field submission-toggle control-field control-field-wide">
-            <label>Прием заявок</label>
-            <div className="submission-toggle-row">
-              <span className={`submission-toggle-status ${submissionEnabled ? 'is-enabled' : 'is-disabled'}`}>
-                {submissionEnabled ? 'Включен' : 'Отключен'}
-              </span>
-              <button className="btn-secondary" type="button" disabled={settingsSaving} onClick={toggleSubmission}>
-                {settingsSaving ? 'Сохранение...' : (submissionEnabled ? 'Отключить' : 'Включить')}
-              </button>
+      <div className="moderator-layout">
+        <aside className="moderator-sidebar">
+          <div className="moderator-sidebar-main">
+            <img className="moderator-sidebar-logo" src="/brand/atu-logo-long.png" alt="Almaty Technological University" />
+
+            <div className="moderator-profile-card">
+              <strong>Модератор</strong>
+              <span>Админ</span>
             </div>
+
+            <nav className="moderator-nav" aria-label="Панель модератора">
+              <a className="moderator-nav-link is-active" href="#panel">Панель</a>
+              <a className="moderator-nav-link" href="#filters">Заявки</a>
+              <button className="moderator-nav-link" type="button" onClick={exportExcel}>Экспорт</button>
+            </nav>
           </div>
 
-          <div className="field control-field">
-            <label>Фильтр по статусу</label>
-            <select value={status} onChange={(e) => changeStatusFilter(e.target.value)}>
-              <option value="">Все</option>
-              <option value="pending">На рассмотрении</option>
-              <option value="accepted">Принято</option>
-              <option value="revision">На доработку</option>
-              <option value="rejected">Отклонено</option>
-            </select>
+          <div className="moderator-sidebar-footer">
+            <div className="moderator-language" aria-label="Язык интерфейса">
+              <button className="is-active" type="button">RU</button>
+              <button type="button">KZ</button>
+            </div>
+            <button className="moderator-footer-link" type="button">Профиль</button>
+            <button className="moderator-footer-link" type="button" onClick={onLogout}>Выйти</button>
           </div>
+        </aside>
 
-          <div className="field control-field control-field-wide">
-            <label>Фильтр по направлению</label>
-            <select value={direction} onChange={(e) => changeDirectionFilter(e.target.value)}>
-              <option value="">Все направления</option>
-              {directionOptions.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </div>
+        <div className="moderator-workspace">
+          <header className="moderator-topbar">
+            <h1>Панель</h1>
+          </header>
 
-          <div className="field control-field">
-            <label>Фильтр по чеку</label>
-            <select value={receipt} onChange={(e) => changeReceiptFilter(e.target.value)}>
-              <option value="">Все</option>
-              <option value="with">С чеком</option>
-              <option value="without">Без чека</option>
-            </select>
-          </div>
+          <main className="moderator-main" id="panel">
+            <section className="moderator-hero">
+              <div>
+                <p>Conference ATU</p>
+                <h2>Панель модератора конференции</h2>
+                <span>Проверка заявок, управление статусами, прием чеков и экспорт данных в одном рабочем интерфейсе.</span>
+              </div>
+              <div className="moderator-hero-stats">
+                <div>
+                  <span>Сегодня</span>
+                  <strong>{todayCount}</strong>
+                </div>
+                <div>
+                  <span>На рассмотрении</span>
+                  <strong>{currentPageStats.pending}</strong>
+                </div>
+                <div>
+                  <span>С чеком</span>
+                  <strong>{receiptCount}</strong>
+                </div>
+              </div>
+            </section>
+
+            <div className="moderator-kpi-grid">
+              <div className="moderator-kpi-card"><span>Все заявки</span><strong>{pagination.total}</strong></div>
+              <div className="moderator-kpi-card"><span>На странице</span><strong>{items.length}</strong></div>
+              <div className="moderator-kpi-card"><span>Принято</span><strong>{currentPageStats.accepted}</strong></div>
+              <div className="moderator-kpi-card"><span>На доработку</span><strong>{currentPageStats.revision}</strong></div>
+            </div>
+
+            <section className="moderator-action-card">
+              <div>
+                <h2>Прием заявок</h2>
+                <p>Переключатель управляет возможностью отправлять новые и исправленные заявки участниками.</p>
+              </div>
+              <div className="moderator-action-controls">
+                <span className={`submission-toggle-status ${submissionEnabled ? 'is-enabled' : 'is-disabled'}`}>
+                  {submissionEnabled ? 'Включен' : 'Отключен'}
+                </span>
+                <button className="btn-primary" type="button" disabled={settingsSaving} onClick={toggleSubmission}>
+                  {settingsSaving ? 'Сохранение...' : (submissionEnabled ? 'Отключить' : 'Включить')}
+                </button>
+              </div>
+            </section>
+
+            <section className="moderator-panel" id="filters">
+              <div className="moderator-panel-head">
+                <div>
+                  <h2>Фильтры заявок</h2>
+                  <p>Активных фильтров: {activeFilterCount}</p>
+                </div>
+                <button className="btn-primary" type="button" onClick={exportExcel}>Экспорт в Excel</button>
+              </div>
+
+              <div className="filter-panel moderator-filter-panel">
+                <div className="field control-field">
+                  <label>Фильтр по статусу</label>
+                  <select value={status} onChange={(e) => changeStatusFilter(e.target.value)}>
+                    <option value="">Все</option>
+                    <option value="pending">На рассмотрении</option>
+                    <option value="accepted">Принято</option>
+                    <option value="revision">На доработку</option>
+                    <option value="rejected">Отклонено</option>
+                  </select>
+                </div>
+
+                <div className="field control-field control-field-wide">
+                  <label>Фильтр по направлению</label>
+                  <select value={direction} onChange={(e) => changeDirectionFilter(e.target.value)}>
+                    <option value="">Все направления</option>
+                    {directionOptions.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="field control-field">
+                  <label>Фильтр по чеку</label>
+                  <select value={receipt} onChange={(e) => changeReceiptFilter(e.target.value)}>
+                    <option value="">Все</option>
+                    <option value="with">С чеком</option>
+                    <option value="without">Без чека</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <section className="moderator-panel moderator-table-panel">
+              <div className="moderator-panel-head">
+                <div>
+                  <h2>Заявки участников</h2>
+                  <p>Страница {pagination.currentPage} из {pagination.lastPage}. Показано {pagination.to} из {pagination.total} заявок.</p>
+                </div>
+                <div className="moderator-panel-actions">
+                  <button className="btn-secondary" type="button" onClick={exportExcel}>Экспорт</button>
+                </div>
+              </div>
+
+              <div className="table-wrap moderator-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>№</th>
+                      <th>Дата создания</th>
+                      <th>Email</th>
+                      <th>Номер телефона</th>
+                      <th>Название доклада</th>
+                      <th>Авторы</th>
+                      <th>Ученая степень, ученое звание, должность</th>
+                      <th>Направление</th>
+                      <th>Научный руководитель</th>
+                      <th>Должность научного руководителя</th>
+                      <th>Степень научного руководителя</th>
+                      <th>Кафедра</th>
+                      <th>Форма участия</th>
+                      <th>Бронирование гостиницы</th>
+                      <th>Оплата</th>
+                      <th>Комментарий модератора</th>
+                      <th>Файл доклада</th>
+                      <th>Статус</th>
+                      <th>Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.length === 0 && (
+                      <tr>
+                        <td colSpan="19">
+                          <div className="empty-state empty-state-table">
+                            <h3>Заявок не найдено</h3>
+                            <p>Измените фильтры или проверьте прием новых заявок.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+
+                    {items.map((app) => {
+                      const receiptPath = app.payment_receipt_path;
+                      const receiptUrl = receiptPath ? toReceiptUrl(receiptPath) : '';
+                      const reportFileUrl = app.file_path ? toReportFileUrl(app.file_path) : '';
+
+                      return (
+                        <tr key={app.id}>
+                          <td>{app.id}</td>
+                          <td>{app.created_at ? new Date(app.created_at).toLocaleString('ru-RU') : '-'}</td>
+                          <td>{app.email}</td>
+                          <td>{app.phone}</td>
+                          <td>{app.report_title}</td>
+                          <td>{app.full_name}</td>
+                          <td>{app.academic_degree}, {app.organization_position}</td>
+                          <td>{app.direction}</td>
+                          <td>{app.supervisor_full_name}</td>
+                          <td>{app.supervisor_organization_position}</td>
+                          <td>{app.supervisor_academic_degree}</td>
+                          <td>{app.department}</td>
+                          <td>{app.participation_form}</td>
+                          <td>{app.hotel_booking_needed ? 'Да' : 'Нет'}</td>
+                          <td>
+                            {receiptPath ? (
+                              <div className="receipt-preview">
+                                <a className="receipt-link" href={receiptUrl} target="_blank" rel="noreferrer">ФАЙЛ чека</a>
+                                {isImagePath(receiptPath) && <img className="receipt-media" src={receiptUrl} alt="Чек" />}
+                                {isPdfPath(receiptPath) && <iframe className="receipt-frame" title={`receipt-${app.id}`} src={`${receiptUrl}#page=1`} />}
+                                {!isImagePath(receiptPath) && !isPdfPath(receiptPath) && <span>Предпросмотр недоступен для этого формата</span>}
+                              </div>
+                            ) : 'Чек не отправлен'}
+                          </td>
+                          <td style={{ minWidth: 220, whiteSpace: 'pre-wrap' }}>{app.moderator_comment || '-'}</td>
+                          <td>{app.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">ФАЙЛ доклада</a> : 'Файл не загружен'}</td>
+                          <td><span className={statusClass[app.status] || statusClass.pending}>{statusLabel[app.status] || app.status}</span></td>
+                          <td>
+                            <div className="actions">
+                              <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'accepted', app.moderator_comment)}>Принять</button>
+                              <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'revision', app.moderator_comment)}>На доработку</button>
+                              <button className="btn-danger" onClick={() => openStatusModal(app.id, 'rejected', app.moderator_comment)}>Отказать</button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="pagination-row moderator-pagination-row">
+                <div className="muted">Показано {pagination.from || 0}-{pagination.to || 0} из {pagination.total} заявок</div>
+                <div className="actions">
+                  <button className="btn-secondary" type="button" disabled={pagination.currentPage <= 1} onClick={() => goToPage(pagination.currentPage - 1)}>Назад</button>
+                  <button className="btn-secondary" type="button" disabled={pagination.currentPage >= pagination.lastPage} onClick={() => goToPage(pagination.currentPage + 1)}>Вперед</button>
+                </div>
+              </div>
+            </section>
+          </main>
         </div>
-
-        <div className="summary-grid summary-grid-compact">
-          <div className="summary-item"><span>Фильтров</span><strong>{activeFilterCount}</strong></div>
-          <div className="summary-item"><span>На рассмотрении</span><strong>{currentPageStats.pending}</strong></div>
-          <div className="summary-item"><span>Принято</span><strong>{currentPageStats.accepted}</strong></div>
-          <div className="summary-item"><span>На доработку</span><strong>{currentPageStats.revision}</strong></div>
-          <div className="summary-item"><span>Отклонено</span><strong>{currentPageStats.rejected}</strong></div>
-        </div>
-
-        <p className="muted table-summary">Страница {pagination.currentPage} из {pagination.lastPage}. Показано {pagination.to} из {pagination.total} заявок.</p>
-
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>№</th>
-                <th>Дата создания</th>
-                <th>Email</th>
-                <th>Номер телефона</th>
-                <th>Название доклада</th>
-                <th>Авторы</th>
-                <th>Ученая степень, ученое звание, должность</th>
-                <th>Направление</th>
-                <th>Научный руководитель</th>
-                <th>Должность научного руководителя</th>
-                <th>Степень научного руководителя</th>
-                <th>Кафедра</th>
-                <th>Форма участия</th>
-                <th>Бронирование гостиницы</th>
-                <th>Оплата</th>
-                <th>Комментарий модератора</th>
-                <th>Файл доклада</th>
-                <th>Статус</th>
-                <th>Действия</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 && (
-                <tr>
-                  <td colSpan="19">
-                    <div className="empty-state empty-state-table">
-                      <h3>Заявок не найдено</h3>
-                      <p>Измените фильтры или проверьте прием новых заявок.</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-
-              {items.map((app) => {
-                const receiptPath = app.payment_receipt_path;
-                const receiptUrl = receiptPath ? toReceiptUrl(receiptPath) : '';
-                const reportFileUrl = app.file_path ? toReportFileUrl(app.file_path) : '';
-
-                return (
-                  <tr key={app.id}>
-                    <td>{app.id}</td>
-                    <td>{app.created_at ? new Date(app.created_at).toLocaleString('ru-RU') : '-'}</td>
-                    <td>{app.email}</td>
-                    <td>{app.phone}</td>
-                    <td>{app.report_title}</td>
-                    <td>{app.full_name}</td>
-                    <td>{app.academic_degree}, {app.organization_position}</td>
-                    <td>{app.direction}</td>
-                    <td>{app.supervisor_full_name}</td>
-                    <td>{app.supervisor_organization_position}</td>
-                    <td>{app.supervisor_academic_degree}</td>
-                    <td>{app.department}</td>
-                    <td>{app.participation_form}</td>
-                    <td>{app.hotel_booking_needed ? 'Да' : 'Нет'}</td>
-                    <td>
-                      {receiptPath ? (
-                        <div className="receipt-preview">
-                          <a className="receipt-link" href={receiptUrl} target="_blank" rel="noreferrer">ФАЙЛ чека</a>
-                          {isImagePath(receiptPath) && <img className="receipt-media" src={receiptUrl} alt="Чек" />}
-                          {isPdfPath(receiptPath) && <iframe className="receipt-frame" title={`receipt-${app.id}`} src={`${receiptUrl}#page=1`} />}
-                          {!isImagePath(receiptPath) && !isPdfPath(receiptPath) && <span>Предпросмотр недоступен для этого формата</span>}
-                        </div>
-                      ) : 'Чек не отправлен'}
-                    </td>
-                    <td style={{ minWidth: 220, whiteSpace: 'pre-wrap' }}>{app.moderator_comment || '-'}</td>
-                    <td>{app.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">ФАЙЛ доклада</a> : 'Файл не загружен'}</td>
-                    <td><span className={statusClass[app.status] || statusClass.pending}>{statusLabel[app.status] || app.status}</span></td>
-                    <td>
-                      <div className="actions">
-                        <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'accepted', app.moderator_comment)}>Принять</button>
-                        <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'revision', app.moderator_comment)}>На доработку</button>
-                        <button className="btn-danger" onClick={() => openStatusModal(app.id, 'rejected', app.moderator_comment)}>Отказать</button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="pagination-row">
-          <div className="muted">Показано {pagination.from || 0}-{pagination.to || 0} из {pagination.total} заявок</div>
-          <div className="actions">
-            <button className="btn-secondary" type="button" disabled={pagination.currentPage <= 1} onClick={() => goToPage(pagination.currentPage - 1)}>Назад</button>
-            <button className="btn-secondary" type="button" disabled={pagination.currentPage >= pagination.lastPage} onClick={() => goToPage(pagination.currentPage + 1)}>Вперед</button>
-          </div>
-        </div>
-      </AppLayout>
+      </div>
 
       <Modal
         open={statusModal.open}
