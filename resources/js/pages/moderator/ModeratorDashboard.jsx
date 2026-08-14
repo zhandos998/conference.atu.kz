@@ -316,29 +316,18 @@ export default function ModeratorDashboard({ onLogout }) {
                     <tr>
                       <th>№</th>
                       <th>Дата создания</th>
-                      <th>Email</th>
-                      <th>Номер телефона</th>
-                      <th>Название доклада</th>
-                      <th>Авторы</th>
-                      <th>Ученая степень, ученое звание, должность</th>
-                      <th>Направление</th>
-                      <th>Научный руководитель</th>
-                      <th>Должность научного руководителя</th>
-                      <th>Степень научного руководителя</th>
-                      <th>Кафедра</th>
-                      <th>Форма участия</th>
-                      <th>Бронирование гостиницы</th>
+                      <th>Участник</th>
+                      <th>Доклад</th>
                       <th>Оплата</th>
-                      <th>Комментарий модератора</th>
-                      <th>Файл доклада</th>
                       <th>Статус</th>
                       <th>Действия</th>
+                      <th>Детали</th>
                     </tr>
                   </thead>
                   <tbody>
                     {items.length === 0 && (
                       <tr>
-                        <td colSpan="19">
+                        <td colSpan="8">
                           <div className="empty-state empty-state-table">
                             <h3>Заявок не найдено</h3>
                             <p>Измените фильтры или проверьте прием новых заявок.</p>
@@ -356,30 +345,21 @@ export default function ModeratorDashboard({ onLogout }) {
                         <tr key={app.id}>
                           <td>{app.id}</td>
                           <td>{app.created_at ? new Date(app.created_at).toLocaleString('ru-RU') : '-'}</td>
-                          <td>{app.email}</td>
-                          <td>{app.phone}</td>
-                          <td>{app.report_title}</td>
-                          <td>{app.full_name}</td>
-                          <td>{app.academic_degree}, {app.organization_position}</td>
-                          <td>{app.direction}</td>
-                          <td>{app.supervisor_full_name}</td>
-                          <td>{app.supervisor_organization_position}</td>
-                          <td>{app.supervisor_academic_degree}</td>
-                          <td>{app.department}</td>
-                          <td>{app.participation_form}</td>
-                          <td>{app.hotel_booking_needed ? 'Да' : 'Нет'}</td>
                           <td>
-                            {receiptPath ? (
-                              <div className="receipt-preview">
-                                <a className="receipt-link" href={receiptUrl} target="_blank" rel="noreferrer">ФАЙЛ чека</a>
-                                {isImagePath(receiptPath) && <img className="receipt-media" src={receiptUrl} alt="Чек" />}
-                                {isPdfPath(receiptPath) && <iframe className="receipt-frame" title={`receipt-${app.id}`} src={`${receiptUrl}#page=1`} />}
-                                {!isImagePath(receiptPath) && !isPdfPath(receiptPath) && <span>Предпросмотр недоступен для этого формата</span>}
-                              </div>
-                            ) : 'Чек не отправлен'}
+                            <div className="moderator-person-cell">
+                              <strong>{app.full_name}</strong>
+                              <span>{app.email}</span>
+                              <span>{app.phone}</span>
+                            </div>
                           </td>
-                          <td style={{ minWidth: 220, whiteSpace: 'pre-wrap' }}>{app.moderator_comment || '-'}</td>
-                          <td>{app.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">ФАЙЛ доклада</a> : 'Файл не загружен'}</td>
+                          <td>
+                            <div className="moderator-report-cell">
+                              <strong>{app.report_title}</strong>
+                              <span>{app.direction}</span>
+                              {app.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">Файл доклада</a> : <span>Файл не загружен</span>}
+                            </div>
+                          </td>
+                          <td>{receiptPath ? <a href={receiptUrl} target="_blank" rel="noreferrer">Файл чека</a> : 'Нет'}</td>
                           <td><span className={statusClass[app.status] || statusClass.pending}>{statusLabel[app.status] || app.status}</span></td>
                           <td>
                             <div className="actions">
@@ -387,6 +367,57 @@ export default function ModeratorDashboard({ onLogout }) {
                               <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'revision', app.moderator_comment)}>На доработку</button>
                               <button className="btn-danger" onClick={() => openStatusModal(app.id, 'rejected', app.moderator_comment)}>Отказать</button>
                             </div>
+                          </td>
+                          <td>
+                            <details className="moderator-row-details">
+                              <summary>Открыть</summary>
+                              <dl>
+                                <div>
+                                  <dt>Ученая степень, звание, должность</dt>
+                                  <dd>{app.academic_degree}, {app.organization_position}</dd>
+                                </div>
+                                <div>
+                                  <dt>Научный руководитель</dt>
+                                  <dd>{app.supervisor_full_name}</dd>
+                                </div>
+                                <div>
+                                  <dt>Должность руководителя</dt>
+                                  <dd>{app.supervisor_organization_position}</dd>
+                                </div>
+                                <div>
+                                  <dt>Степень руководителя</dt>
+                                  <dd>{app.supervisor_academic_degree}</dd>
+                                </div>
+                                <div>
+                                  <dt>Кафедра</dt>
+                                  <dd>{app.department}</dd>
+                                </div>
+                                <div>
+                                  <dt>Форма участия</dt>
+                                  <dd>{app.participation_form}</dd>
+                                </div>
+                                <div>
+                                  <dt>Бронирование гостиницы</dt>
+                                  <dd>{app.hotel_booking_needed ? 'Да' : 'Нет'}</dd>
+                                </div>
+                                <div>
+                                  <dt>Комментарий модератора</dt>
+                                  <dd>{app.moderator_comment || '-'}</dd>
+                                </div>
+                                {receiptPath && (
+                                  <div>
+                                    <dt>Предпросмотр чека</dt>
+                                    <dd>
+                                      <div className="receipt-preview">
+                                        {isImagePath(receiptPath) && <img className="receipt-media" src={receiptUrl} alt="Чек" />}
+                                        {isPdfPath(receiptPath) && <iframe className="receipt-frame" title={`receipt-${app.id}`} src={`${receiptUrl}#page=1`} />}
+                                        {!isImagePath(receiptPath) && !isPdfPath(receiptPath) && <span>Предпросмотр недоступен для этого формата</span>}
+                                      </div>
+                                    </dd>
+                                  </div>
+                                )}
+                              </dl>
+                            </details>
                           </td>
                         </tr>
                       );
