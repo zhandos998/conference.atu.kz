@@ -188,4 +188,47 @@ class ModeratorWorkflowTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $withoutReceipt->id);
     }
+
+    public function test_moderator_can_filter_applications_by_author_and_report_title(): void
+    {
+        $moderator = User::factory()->create([
+            'role' => 'moderator',
+            'email_verified_at' => now(),
+        ]);
+
+        $user = User::factory()->create([
+            'role' => 'user',
+            'email_verified_at' => now(),
+        ]);
+
+        $authorMatch = Application::create(array_merge($this->applicationPayload($user), [
+            'full_name' => 'Aigerim Search Author',
+            'email' => 'author-filter@example.com',
+            'report_title' => 'Food safety overview',
+        ]));
+
+        $titleMatch = Application::create(array_merge($this->applicationPayload($user), [
+            'full_name' => 'Other Participant',
+            'email' => 'title-filter@example.com',
+            'report_title' => 'Smart Textile Article',
+        ]));
+
+        Application::create(array_merge($this->applicationPayload($user), [
+            'full_name' => 'Ignored Participant',
+            'email' => 'ignored-filter@example.com',
+            'report_title' => 'Chemistry research',
+        ]));
+
+        Sanctum::actingAs($moderator);
+
+        $this->getJson('/api/moderator/applications?full_name=Aigerim')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $authorMatch->id);
+
+        $this->getJson('/api/moderator/applications?report_title=Textile')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $titleMatch->id);
+    }
 }

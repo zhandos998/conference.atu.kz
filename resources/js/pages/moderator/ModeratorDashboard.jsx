@@ -70,6 +70,8 @@ export default function ModeratorDashboard({ onLogout }) {
   const [status, setStatus] = useState('');
   const [direction, setDirection] = useState('');
   const [receipt, setReceipt] = useState('');
+  const [fullNameSearch, setFullNameSearch] = useState('');
+  const [reportTitleSearch, setReportTitleSearch] = useState('');
   const [items, setItems] = useState([]);
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [applicationDetailLoading, setApplicationDetailLoading] = useState(false);
@@ -84,7 +86,7 @@ export default function ModeratorDashboard({ onLogout }) {
 
     return acc;
   }, { pending: 0, accepted: 0, revision: 0, rejected: 0 });
-  const activeFilterCount = [status, direction, receipt].filter(Boolean).length;
+  const activeFilterCount = [status, direction, receipt, fullNameSearch.trim(), reportTitleSearch.trim()].filter(Boolean).length;
   const todayCount = items.filter((application) => {
     if (!application.created_at) {
       return false;
@@ -99,11 +101,15 @@ export default function ModeratorDashboard({ onLogout }) {
     nextStatus = status,
     nextDirection = direction,
     nextReceipt = receipt,
+    nextFullNameSearch = fullNameSearch,
+    nextReportTitleSearch = reportTitleSearch,
   ) => {
     const params = { page: nextPage };
     if (nextStatus) params.status = nextStatus;
     if (nextDirection) params.direction = nextDirection;
     if (nextReceipt) params.receipt = nextReceipt;
+    if (nextFullNameSearch.trim()) params.full_name = nextFullNameSearch.trim();
+    if (nextReportTitleSearch.trim()) params.report_title = nextReportTitleSearch.trim();
 
     const { data } = await api.get('/moderator/applications', { params });
 
@@ -125,7 +131,7 @@ export default function ModeratorDashboard({ onLogout }) {
   useEffect(() => {
     const bootstrap = async () => {
       await Promise.all([
-        load(1, '', '', ''),
+        load(1, '', '', '', '', ''),
         loadSubmissionSettings(),
       ]);
     };
@@ -192,7 +198,7 @@ export default function ModeratorDashboard({ onLogout }) {
         setSelectedApplication(data);
       }
       closeStatusModal();
-      await load(pagination.currentPage, status, direction, receipt);
+      await load(pagination.currentPage, status, direction, receipt, fullNameSearch, reportTitleSearch);
     } catch (err) {
       setErrorModal({ open: true, message: err.response?.data?.message || 'Не удалось изменить статус заявки.' });
     }
@@ -222,17 +228,31 @@ export default function ModeratorDashboard({ onLogout }) {
 
   const changeStatusFilter = (nextStatus) => {
     setStatus(nextStatus);
-    load(1, nextStatus, direction, receipt);
+    load(1, nextStatus, direction, receipt, fullNameSearch, reportTitleSearch);
   };
 
   const changeDirectionFilter = (nextDirection) => {
     setDirection(nextDirection);
-    load(1, status, nextDirection, receipt);
+    load(1, status, nextDirection, receipt, fullNameSearch, reportTitleSearch);
   };
 
   const changeReceiptFilter = (nextReceipt) => {
     setReceipt(nextReceipt);
-    load(1, status, direction, nextReceipt);
+    load(1, status, direction, nextReceipt, fullNameSearch, reportTitleSearch);
+  };
+
+  const applySearchFilters = (e) => {
+    e.preventDefault();
+    load(1, status, direction, receipt, fullNameSearch, reportTitleSearch);
+  };
+
+  const resetFilters = () => {
+    setStatus('');
+    setDirection('');
+    setReceipt('');
+    setFullNameSearch('');
+    setReportTitleSearch('');
+    load(1, '', '', '', '', '');
   };
 
   const goToPage = (page) => {
@@ -240,7 +260,7 @@ export default function ModeratorDashboard({ onLogout }) {
       return;
     }
 
-    load(page, status, direction, receipt);
+    load(page, status, direction, receipt, fullNameSearch, reportTitleSearch);
   };
 
   const toggleSubmission = async () => {
@@ -330,7 +350,7 @@ export default function ModeratorDashboard({ onLogout }) {
           <button className="btn-primary" type="button" onClick={() => openModeratorPage('export')}>Перейти к экспорту</button>
         </div>
 
-        <div className="filter-panel moderator-filter-panel">
+        <form className="filter-panel moderator-filter-panel" onSubmit={applySearchFilters}>
           <div className="field control-field">
             <label>Фильтр по статусу</label>
             <select value={status} onChange={(e) => changeStatusFilter(e.target.value)}>
@@ -353,6 +373,26 @@ export default function ModeratorDashboard({ onLogout }) {
           </div>
 
           <div className="field control-field">
+            <label>ФИО автора</label>
+            <input
+              type="search"
+              value={fullNameSearch}
+              onChange={(e) => setFullNameSearch(e.target.value)}
+              placeholder="Введите ФИО автора"
+            />
+          </div>
+
+          <div className="field control-field control-field-wide">
+            <label>Название статьи</label>
+            <input
+              type="search"
+              value={reportTitleSearch}
+              onChange={(e) => setReportTitleSearch(e.target.value)}
+              placeholder="Введите название статьи"
+            />
+          </div>
+
+          <div className="field control-field">
             <label>Фильтр по чеку</label>
             <select value={receipt} onChange={(e) => changeReceiptFilter(e.target.value)}>
               <option value="">Все</option>
@@ -360,7 +400,12 @@ export default function ModeratorDashboard({ onLogout }) {
               <option value="without">Без чека</option>
             </select>
           </div>
-        </div>
+
+          <div className="moderator-filter-actions">
+            <button className="btn-primary" type="submit">Найти</button>
+            <button className="btn-secondary" type="button" onClick={resetFilters}>Сбросить</button>
+          </div>
+        </form>
       </section>
 
       <section className="moderator-panel moderator-table-panel">

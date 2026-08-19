@@ -53,6 +53,14 @@ class ModeratorApplicationController extends Controller
             $query->where('direction', $request->string('direction'));
         }
 
+        if ($request->filled('full_name')) {
+            $query->where('full_name', 'like', '%' . $request->string('full_name')->trim() . '%');
+        }
+
+        if ($request->filled('report_title')) {
+            $query->where('report_title', 'like', '%' . $request->string('report_title')->trim() . '%');
+        }
+
         if ($receipt === 'with') {
             $query->whereNotNull('payment_receipt_path')
                 ->where('payment_receipt_path', '!=', '');

@@ -1284,6 +1284,18 @@ textarea:focus {
   padding: 20px 24px 24px;
 }
 
+.moderator-filter-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex: 1 1 260px;
+  max-width: 360px;
+}
+
+.moderator-filter-actions button {
+  flex: 1 1 120px;
+}
+
 .moderator-export-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2146,7 +2158,8 @@ td iframe {
   }
 
   .control-field,
-  .control-field-wide {
+  .control-field-wide,
+  .moderator-filter-actions {
     max-width: none;
     min-width: 0;
   }
