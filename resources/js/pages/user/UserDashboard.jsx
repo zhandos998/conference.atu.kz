@@ -135,7 +135,7 @@ export default function UserDashboard({ user, onLogout }) {
     }
   };
 
-  const goToList = async () => {
+  const goToList = async ({ successMessage = '' } = {}) => {
     setMessage('');
     setError('');
     setPaymentReceipt(null);
@@ -148,6 +148,11 @@ export default function UserDashboard({ user, onLogout }) {
 
     if (getUserApplicationIdFromLocation()) {
       window.history.replaceState({}, '', '/');
+    }
+
+    if (successMessage) {
+      setMessage(successMessage);
+      openNotice('Заявка отправлена', successMessage);
     }
   };
 
@@ -210,8 +215,9 @@ export default function UserDashboard({ user, onLogout }) {
 
     try {
       await api.post('/applications', buildPayload());
-      setMessage('Заявка успешно отправлена.');
-      await goToList();
+      await goToList({
+        successMessage: 'Ваша заявка успешно отправлена. Статус можно отслеживать в списке заявок.',
+      });
     } catch (err) {
       setError(err.response?.data?.message || 'Ошибка при отправке заявки.');
     }
