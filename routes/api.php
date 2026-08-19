@@ -31,6 +31,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::prefix('moderator')->group(function () {
         Route::get('/applications', [ModeratorApplicationController::class, 'index']);
+        Route::get('/applications/{application}', [ModeratorApplicationController::class, 'show']);
         Route::patch('/applications/{application}/status', [ModeratorApplicationController::class, 'updateStatus']);
         Route::get('/applications-export', [ModeratorApplicationController::class, 'export']);
         Route::get('/application-submission-settings', [ModeratorApplicationController::class, 'submissionSettings']);

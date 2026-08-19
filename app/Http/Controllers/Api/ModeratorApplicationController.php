@@ -68,6 +68,13 @@ class ModeratorApplicationController extends Controller
         return response()->json($query->paginate(20));
     }
 
+    public function show(Application $application)
+    {
+        $this->authorize('moderate', Application::class);
+
+        return response()->json($application->load('user'));
+    }
+
     public function updateStatus(UpdateApplicationStatusRequest $request, Application $application)
     {
         $this->authorize('moderate', Application::class);

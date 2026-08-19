@@ -25,8 +25,6 @@ const directionOptions = [
   'Социально-гуманитарные науки',
 ];
 
-const isImagePath = (path) => /\.(jpg|jpeg|png|gif|webp)$/i.test(path || '');
-const isPdfPath = (path) => /\.pdf$/i.test(path || '');
 const apiBaseUrl = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
 const apiOrigin = new URL(apiBaseUrl, window.location.origin).origin;
 const toReceiptUrl = (path) => `${apiOrigin}/storage/${path}`;
@@ -39,10 +37,21 @@ const moderatorPagePath = {
 const moderatorPageTitle = {
   dashboard: 'Панель',
   applications: 'Заявки',
+  applicationDetail: 'Заявка',
   export: 'Экспорт',
+};
+const getModeratorApplicationIdFromLocation = () => {
+  const path = window.location.pathname.replace(/\/+$/, '');
+  const match = path.match(/^\/moderator\/applications\/(\d+)$/);
+
+  return match ? Number(match[1]) : null;
 };
 const getModeratorPageFromLocation = () => {
   const path = window.location.pathname.replace(/\/+$/, '');
+
+  if (getModeratorApplicationIdFromLocation()) {
+    return 'applicationDetail';
+  }
 
   if (path.endsWith('/moderator/applications') || window.location.hash === '#filters') {
     return 'applications';
@@ -57,10 +66,14 @@ const getModeratorPageFromLocation = () => {
 
 export default function ModeratorDashboard({ onLogout }) {
   const [activePage, setActivePage] = useState(getModeratorPageFromLocation);
+  const [activeApplicationId, setActiveApplicationId] = useState(getModeratorApplicationIdFromLocation);
   const [status, setStatus] = useState('');
   const [direction, setDirection] = useState('');
   const [receipt, setReceipt] = useState('');
   const [items, setItems] = useState([]);
+  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [applicationDetailLoading, setApplicationDetailLoading] = useState(false);
+  const [applicationDetailError, setApplicationDetailError] = useState('');
   const [pagination, setPagination] = useState({ currentPage: 1, lastPage: 1, from: 0, to: 0, total: 0 });
   const [errorModal, setErrorModal] = useState({ open: false, message: '' });
   const [statusModal, setStatusModal] = useState({ open: false, applicationId: null, newStatus: 'pending', comment: '' });
@@ -121,15 +134,42 @@ export default function ModeratorDashboard({ onLogout }) {
   }, []);
 
   useEffect(() => {
-    const handlePopState = () => setActivePage(getModeratorPageFromLocation());
+    const handlePopState = () => {
+      setActivePage(getModeratorPageFromLocation());
+      setActiveApplicationId(getModeratorApplicationIdFromLocation());
+    };
 
     window.addEventListener('popstate', handlePopState);
 
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  useEffect(() => {
+    if (activePage !== 'applicationDetail' || !activeApplicationId) {
+      return;
+    }
+
+    const loadApplication = async () => {
+      setApplicationDetailLoading(true);
+      setApplicationDetailError('');
+
+      try {
+        const { data } = await api.get(`/moderator/applications/${activeApplicationId}`);
+        setSelectedApplication(data);
+      } catch (err) {
+        setSelectedApplication(null);
+        setApplicationDetailError(err.response?.data?.message || 'Не удалось открыть заявку.');
+      } finally {
+        setApplicationDetailLoading(false);
+      }
+    };
+
+    loadApplication();
+  }, [activePage, activeApplicationId]);
+
   const openModeratorPage = (page) => {
     setActivePage(page);
+    setActiveApplicationId(null);
     window.history.pushState({}, '', moderatorPagePath[page]);
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
@@ -144,10 +184,13 @@ export default function ModeratorDashboard({ onLogout }) {
 
   const submitStatusChange = async () => {
     try {
-      await api.patch(`/moderator/applications/${statusModal.applicationId}/status`, {
+      const { data } = await api.patch(`/moderator/applications/${statusModal.applicationId}/status`, {
         status: statusModal.newStatus,
         moderator_comment: statusModal.comment,
       });
+      if (selectedApplication?.id === statusModal.applicationId) {
+        setSelectedApplication(data);
+      }
       closeStatusModal();
       await load(pagination.currentPage, status, direction, receipt);
     } catch (err) {
@@ -339,7 +382,7 @@ export default function ModeratorDashboard({ onLogout }) {
                 <th>Оплата</th>
                 <th>Статус</th>
                 <th>Действия</th>
-                <th>Детали</th>
+                <th>Заявка</th>
               </tr>
             </thead>
             <tbody>
@@ -374,7 +417,7 @@ export default function ModeratorDashboard({ onLogout }) {
                       <div className="moderator-report-cell">
                         <strong>{app.report_title}</strong>
                         <span>{app.direction}</span>
-                        {app.file_path ? <a className="article-open-link" href={reportFileUrl} target="_blank" rel="noreferrer">Открыть статью</a> : <span>Файл не загружен</span>}
+                        {app.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">Файл доклада</a> : <span>Файл не загружен</span>}
                       </div>
                     </td>
                     <td>{receiptPath ? <a href={receiptUrl} target="_blank" rel="noreferrer">Файл чека</a> : 'Нет'}</td>
@@ -387,55 +430,7 @@ export default function ModeratorDashboard({ onLogout }) {
                       </div>
                     </td>
                     <td>
-                      <details className="moderator-row-details">
-                        <summary>Открыть</summary>
-                        <dl>
-                          <div>
-                            <dt>Ученая степень, звание, должность</dt>
-                            <dd>{app.academic_degree}, {app.organization_position}</dd>
-                          </div>
-                          <div>
-                            <dt>Научный руководитель</dt>
-                            <dd>{app.supervisor_full_name}</dd>
-                          </div>
-                          <div>
-                            <dt>Должность руководителя</dt>
-                            <dd>{app.supervisor_organization_position}</dd>
-                          </div>
-                          <div>
-                            <dt>Степень руководителя</dt>
-                            <dd>{app.supervisor_academic_degree}</dd>
-                          </div>
-                          <div>
-                            <dt>Кафедра</dt>
-                            <dd>{app.department}</dd>
-                          </div>
-                          <div>
-                            <dt>Форма участия</dt>
-                            <dd>{app.participation_form}</dd>
-                          </div>
-                          <div>
-                            <dt>Бронирование гостиницы</dt>
-                            <dd>{app.hotel_booking_needed ? 'Да' : 'Нет'}</dd>
-                          </div>
-                          <div>
-                            <dt>Комментарий модератора</dt>
-                            <dd>{app.moderator_comment || '-'}</dd>
-                          </div>
-                          {receiptPath && (
-                            <div>
-                              <dt>Предпросмотр чека</dt>
-                              <dd>
-                                <div className="receipt-preview">
-                                  {isImagePath(receiptPath) && <img className="receipt-media" src={receiptUrl} alt="Чек" />}
-                                  {isPdfPath(receiptPath) && <iframe className="receipt-frame" title={`receipt-${app.id}`} src={`${receiptUrl}#page=1`} />}
-                                  {!isImagePath(receiptPath) && !isPdfPath(receiptPath) && <span>Предпросмотр недоступен для этого формата</span>}
-                                </div>
-                              </dd>
-                            </div>
-                          )}
-                        </dl>
-                      </details>
+                      <a className="btn-secondary application-open-link" href={`/moderator/applications/${app.id}`} target="_blank" rel="noreferrer">Открыть заявку</a>
                     </td>
                   </tr>
                 );
@@ -454,6 +449,87 @@ export default function ModeratorDashboard({ onLogout }) {
       </section>
     </>
   );
+
+  const renderApplicationDetailPage = () => {
+    if (applicationDetailLoading) {
+      return (
+        <section className="moderator-panel application-detail-page">
+          <div className="moderator-panel-head">
+            <div>
+              <h2>Загрузка заявки</h2>
+              <p>Получаем данные заявки с сервера.</p>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if (applicationDetailError || !selectedApplication) {
+      return (
+        <section className="moderator-panel application-detail-page">
+          <div className="moderator-panel-head">
+            <div>
+              <h2>Заявка не открылась</h2>
+              <p>{applicationDetailError || 'Заявка не найдена.'}</p>
+            </div>
+            <button className="btn-secondary" type="button" onClick={() => openModeratorPage('applications')}>К списку заявок</button>
+          </div>
+        </section>
+      );
+    }
+
+    const reportFileUrl = selectedApplication.file_path ? toReportFileUrl(selectedApplication.file_path) : '';
+    const receiptUrl = selectedApplication.payment_receipt_path ? toReceiptUrl(selectedApplication.payment_receipt_path) : '';
+
+    return (
+      <>
+        <section className="moderator-panel application-detail-page">
+          <div className="application-detail-head">
+            <div>
+              <p className="section-kicker">Заявка #{selectedApplication.id}</p>
+              <h2>{selectedApplication.report_title}</h2>
+              <p>{selectedApplication.created_at ? new Date(selectedApplication.created_at).toLocaleString('ru-RU') : '-'}</p>
+            </div>
+            <span className={statusClass[selectedApplication.status] || statusClass.pending}>
+              {statusLabel[selectedApplication.status] || selectedApplication.status}
+            </span>
+          </div>
+
+          <div className="application-detail-actions">
+            <button className="btn-secondary" type="button" onClick={() => openModeratorPage('applications')}>К списку заявок</button>
+            {selectedApplication.file_path && <a className="btn-secondary" href={reportFileUrl} target="_blank" rel="noreferrer">Открыть файл доклада</a>}
+            {selectedApplication.payment_receipt_path && <a className="btn-secondary" href={receiptUrl} target="_blank" rel="noreferrer">Открыть чек</a>}
+          </div>
+
+          <div className="detail-grid application-detail-grid">
+            <div><span>Ф.И.О.</span><strong>{selectedApplication.full_name}</strong></div>
+            <div><span>Email</span><strong>{selectedApplication.email}</strong></div>
+            <div><span>Телефон</span><strong>{selectedApplication.phone}</strong></div>
+            <div><span>Место учебы/работы и должность</span><strong>{selectedApplication.organization_position}</strong></div>
+            <div><span>Ученая степень</span><strong>{selectedApplication.academic_degree}</strong></div>
+            <div><span>Кафедра</span><strong>{selectedApplication.department}</strong></div>
+            <div><span>Направление</span><strong>{selectedApplication.direction}</strong></div>
+            <div><span>Форма участия</span><strong>{selectedApplication.participation_form}</strong></div>
+            <div><span>Научный руководитель</span><strong>{selectedApplication.supervisor_full_name}</strong></div>
+            <div><span>Должность руководителя</span><strong>{selectedApplication.supervisor_organization_position}</strong></div>
+            <div><span>Степень руководителя</span><strong>{selectedApplication.supervisor_academic_degree}</strong></div>
+            <div><span>Бронирование гостиницы</span><strong>{selectedApplication.hotel_booking_needed ? 'Да' : 'Нет'}</strong></div>
+          </div>
+
+          <div className="comment-panel">
+            <span>Комментарий модератора</span>
+            <p>{selectedApplication.moderator_comment || '-'}</p>
+          </div>
+
+          <div className="application-status-actions">
+            <button className="btn-secondary" onClick={() => openStatusModal(selectedApplication.id, 'accepted', selectedApplication.moderator_comment)}>Принять</button>
+            <button className="btn-secondary" onClick={() => openStatusModal(selectedApplication.id, 'revision', selectedApplication.moderator_comment)}>На доработку</button>
+            <button className="btn-danger" onClick={() => openStatusModal(selectedApplication.id, 'rejected', selectedApplication.moderator_comment)}>Отказать</button>
+          </div>
+        </section>
+      </>
+    );
+  };
 
   const renderExportPage = () => (
     <>
@@ -505,7 +581,7 @@ export default function ModeratorDashboard({ onLogout }) {
 
             <nav className="moderator-nav" aria-label="Панель модератора">
               <button className={`moderator-nav-link ${activePage === 'dashboard' ? 'is-active' : ''}`} type="button" onClick={() => openModeratorPage('dashboard')}>Панель</button>
-              <button className={`moderator-nav-link ${activePage === 'applications' ? 'is-active' : ''}`} type="button" onClick={() => openModeratorPage('applications')}>Заявки</button>
+              <button className={`moderator-nav-link ${['applications', 'applicationDetail'].includes(activePage) ? 'is-active' : ''}`} type="button" onClick={() => openModeratorPage('applications')}>Заявки</button>
               <button className={`moderator-nav-link ${activePage === 'export' ? 'is-active' : ''}`} type="button" onClick={() => openModeratorPage('export')}>Экспорт</button>
             </nav>
           </div>
@@ -528,6 +604,7 @@ export default function ModeratorDashboard({ onLogout }) {
           <main className="moderator-main">
             {activePage === 'dashboard' && renderDashboardPage()}
             {activePage === 'applications' && renderApplicationsPage()}
+            {activePage === 'applicationDetail' && renderApplicationDetailPage()}
             {activePage === 'export' && renderExportPage()}
           </main>
         </div>

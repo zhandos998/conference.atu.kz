@@ -63,6 +63,12 @@ const toForm = (application) => ({
 const apiBaseUrl = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
 const apiOrigin = new URL(apiBaseUrl, window.location.origin).origin;
 const toReportFileUrl = (path) => `${apiOrigin}/storage/${path}`;
+const getUserApplicationIdFromLocation = () => {
+  const path = window.location.pathname.replace(/\/+$/, '');
+  const match = path.match(/^\/applications\/(\d+)$/);
+
+  return match ? Number(match[1]) : null;
+};
 const viewTitle = {
   list: 'Мои заявки',
   create: 'Новая заявка',
@@ -106,6 +112,11 @@ export default function UserDashboard({ onLogout }) {
         loadApplications(),
         loadSubmissionSettings(),
       ]);
+
+      const applicationId = getUserApplicationIdFromLocation();
+      if (applicationId) {
+        await openApplication(applicationId);
+      }
     };
 
     bootstrap();
@@ -132,7 +143,12 @@ export default function UserDashboard({ onLogout }) {
       loadApplications(),
       loadSubmissionSettings(),
     ]);
+    setSelectedApplication(null);
     setView('list');
+
+    if (getUserApplicationIdFromLocation()) {
+      window.history.replaceState({}, '', '/');
+    }
   };
 
   const goToCreate = () => {
@@ -363,7 +379,7 @@ export default function UserDashboard({ onLogout }) {
                 <span className={statusClass[app.status] || statusClass.pending}>{statusLabel[app.status] || app.status}</span>
               </div>
               <div className="inline-actions">
-                <button className="btn-secondary" type="button" onClick={() => openApplication(app.id)}>Открыть заявку</button>
+                <a className="btn-secondary" href={`/applications/${app.id}`} target="_blank" rel="noreferrer">Открыть заявку</a>
               </div>
             </div>
           ))}
@@ -409,7 +425,7 @@ export default function UserDashboard({ onLogout }) {
             <div><span>Форма участия</span><strong>{selectedApplication.participation_form}</strong></div>
             <div><span>Бронирование гостиницы</span><strong>{selectedApplication.hotel_booking_needed ? 'Да' : 'Нет'}</strong></div>
             <div><span>Дата создания</span><strong>{selectedApplication.created_at ? new Date(selectedApplication.created_at).toLocaleString('ru-RU') : '-'}</strong></div>
-            <div><span>Статья</span><strong>{selectedApplication.file_path ? <a className="article-open-link" href={reportFileUrl} target="_blank" rel="noreferrer">Открыть статью</a> : 'Файл не загружен'}</strong></div>
+            <div><span>Файл доклада</span><strong>{selectedApplication.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">Открыть файл</a> : 'Файл не загружен'}</strong></div>
           </div>
 
           <div className="comment-panel">

@@ -77,6 +77,43 @@ class ModeratorWorkflowTest extends TestCase
         Notification::assertSentTo($user, ApplicationStatusChangedNotification::class);
     }
 
+    public function test_moderator_can_view_application_details(): void
+    {
+        $moderator = User::factory()->create([
+            'role' => 'moderator',
+            'email_verified_at' => now(),
+        ]);
+
+        $user = User::factory()->create([
+            'role' => 'user',
+            'email_verified_at' => now(),
+        ]);
+
+        $application = Application::create($this->applicationPayload($user));
+
+        Sanctum::actingAs($moderator);
+
+        $this->getJson('/api/moderator/applications/' . $application->id)
+            ->assertOk()
+            ->assertJsonPath('id', $application->id)
+            ->assertJsonPath('user.id', $user->id);
+    }
+
+    public function test_user_cannot_open_moderator_application_details(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'user',
+            'email_verified_at' => now(),
+        ]);
+
+        $application = Application::create($this->applicationPayload($user));
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/moderator/applications/' . $application->id)
+            ->assertForbidden();
+    }
+
     public function test_moderator_can_export_excel(): void
     {
         $moderator = User::factory()->create([
