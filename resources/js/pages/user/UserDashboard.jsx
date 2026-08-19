@@ -89,6 +89,10 @@ export default function UserDashboard({ user, onLogout }) {
   }, { total: 0, pending: 0, accepted: 0, revision: 0, rejected: 0 });
   const userName = user?.name || user?.email || t('user.fallbackName');
   const statusText = (status) => (statusLabel[status] ? t(statusLabel[status]) : status);
+  const needsPayment = (application) => (
+    application?.status === 'accepted' && !application?.payment_receipt_path
+  );
+  const paymentApplications = applications.filter(needsPayment);
 
   const loadApplications = async () => {
     const { data } = await api.get('/applications');
@@ -362,6 +366,23 @@ export default function UserDashboard({ user, onLogout }) {
 
       {!submissionEnabled && <p className="error-text">{t('user.list.disabled')}</p>}
 
+      {paymentApplications.length > 0 && (
+        <div className="payment-notice-panel">
+          <div>
+            <h3>{t('user.payment.title')}</h3>
+            <p>{t('user.payment.message')}</p>
+            <p>{t('user.payment.uploadInstruction')}</p>
+          </div>
+          <button
+            className="btn-primary"
+            type="button"
+            onClick={() => openApplication(paymentApplications[0].id)}
+          >
+            {t('user.payment.openApplication')}
+          </button>
+        </div>
+      )}
+
       {applications.length === 0 ? (
         <div className="empty-state">
           <h3>{t('user.list.emptyTitle')}</h3>
@@ -377,6 +398,7 @@ export default function UserDashboard({ user, onLogout }) {
                   <span className={statusClass[app.status] || statusClass.pending}>{statusText(app.status)}</span>
                 </div>
                 <p className="app-meta">{formatDateTime(app.created_at, language)}</p>
+                {needsPayment(app) && <p className="payment-row-note">{t('user.payment.rowNotice')}</p>}
               </div>
               <div className="user-row-actions">
                 <a className="btn-secondary" href={`/applications/${app.id}`} target="_blank" rel="noreferrer">{t('user.list.openApplication')}</a>
@@ -461,6 +483,15 @@ export default function UserDashboard({ user, onLogout }) {
 
         {selectedApplication.status === 'accepted' && (
           <form onSubmit={submitPaymentReceipt} className="receipt-upload-panel">
+            <div className={needsPayment(selectedApplication) ? 'receipt-payment-notice' : 'receipt-uploaded-notice'}>
+              <strong>{needsPayment(selectedApplication) ? t('user.payment.title') : t('user.payment.receiptUploaded')}</strong>
+              {needsPayment(selectedApplication) && (
+                <>
+                  <p>{t('user.payment.message')}</p>
+                  <p>{t('user.payment.uploadInstruction')}</p>
+                </>
+              )}
+            </div>
             <div className="field" style={{ maxWidth: 420 }}>
               <label>{t('user.receipt.upload')}</label>
               <input type="file" onChange={(e) => setPaymentReceipt(e.target.files?.[0] || null)} />

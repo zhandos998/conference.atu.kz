@@ -944,6 +944,51 @@ textarea:focus {
   flex-wrap: wrap;
 }
 
+.payment-notice-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0 24px 14px;
+  border: 1px solid #f1d58a;
+  border-left: 4px solid var(--atu-yellow);
+  border-radius: 8px;
+  padding: 16px 18px;
+  background: #fff8dd;
+  color: #4d3a05;
+}
+
+.payment-notice-panel h3,
+.payment-notice-panel p,
+.receipt-payment-notice p {
+  margin: 0;
+}
+
+.payment-notice-panel h3,
+.receipt-payment-notice strong,
+.receipt-uploaded-notice strong {
+  display: block;
+  color: var(--atu-blue-strong);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.payment-notice-panel p,
+.receipt-payment-notice p {
+  margin-top: 6px;
+  color: #5f4a10;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.payment-row-note {
+  margin: 8px 0 0;
+  color: #8a5b00;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
 .user-row-actions {
   display: flex;
   flex: 0 0 auto;
@@ -1688,6 +1733,23 @@ textarea:focus {
   background: #fff;
 }
 
+.receipt-payment-notice,
+.receipt-uploaded-notice {
+  margin-bottom: 14px;
+  border-radius: 8px;
+  padding: 13px 14px;
+}
+
+.receipt-payment-notice {
+  border: 1px solid #f1d58a;
+  background: #fff8dd;
+}
+
+.receipt-uploaded-notice {
+  border: 1px solid #bbf7d0;
+  background: #edfff4;
+}
+
 .empty-state {
   margin-top: 16px;
   border: 1px dashed var(--border-strong);
@@ -2072,7 +2134,8 @@ td iframe {
   .user-brand-nav,
   .user-topbar-actions,
   .user-application-row,
-  .user-application-row-head {
+  .user-application-row-head,
+  .payment-notice-panel {
     align-items: stretch;
     flex-direction: column;
   }
@@ -2093,9 +2156,18 @@ td iframe {
   .user-hero,
   .user-panel-head,
   .user-application-list,
+  .payment-notice-panel,
   .user-form-panel .application-form,
   .user-detail-actions {
     padding: 16px;
+  }
+
+  .payment-notice-panel {
+    margin: 0 16px 14px;
+  }
+
+  .payment-notice-panel .btn-primary {
+    width: 100%;
   }
 
   .user-hero h2 {
