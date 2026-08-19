@@ -30,6 +30,8 @@ const initialForm = {
   file: null,
 };
 
+const paymentUrl = 'https://kaspi.kz/pay/ATU';
+
 const statusClass = {
   pending: 'status status-pending',
   accepted: 'status status-accepted',
@@ -413,13 +415,18 @@ export default function UserDashboard({ user, onLogout }) {
             <p className="payment-amount">{t('user.payment.amount', { amount: applicationFeeText(paymentApplications[0]) })}</p>
             <p>{t('user.payment.uploadInstruction')}</p>
           </div>
-          <button
-            className="btn-primary"
-            type="button"
-            onClick={() => openApplication(paymentApplications[0].id)}
-          >
-            {t('user.payment.openApplication')}
-          </button>
+          <div className="payment-notice-actions">
+            <a className="btn-primary" href={paymentUrl} target="_blank" rel="noreferrer">
+              {t('user.payment.payLink')}
+            </a>
+            <button
+              className="btn-secondary"
+              type="button"
+              onClick={() => openApplication(paymentApplications[0].id)}
+            >
+              {t('user.payment.openApplication')}
+            </button>
+          </div>
         </div>
       )}
 
@@ -532,6 +539,11 @@ export default function UserDashboard({ user, onLogout }) {
                 <>
                   <p>{t('user.payment.message')}</p>
                   <p className="payment-amount">{t('user.payment.amount', { amount: applicationFeeText(selectedApplication) })}</p>
+                  <div className="inline-actions receipt-payment-actions">
+                    <a className="btn-primary" href={paymentUrl} target="_blank" rel="noreferrer">
+                      {t('user.payment.payLink')}
+                    </a>
+                  </div>
                   <p>{t('user.payment.uploadInstruction')}</p>
                 </>
               )}

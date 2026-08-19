@@ -1000,6 +1000,18 @@ textarea:focus {
   font-weight: 900;
 }
 
+.payment-notice-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.receipt-payment-actions {
+  margin: 10px 0 2px;
+}
+
 .payment-row-note {
   margin: 8px 0 0;
   color: #8a5b00;
@@ -2234,7 +2246,9 @@ td iframe {
     margin: 0 16px 14px;
   }
 
-  .payment-notice-panel .btn-primary {
+  .payment-notice-actions,
+  .payment-notice-panel .btn-primary,
+  .payment-notice-panel .btn-secondary {
     width: 100%;
   }
 
@@ -2341,8 +2355,11 @@ td iframe {
   }
 
   .inline-actions > button,
+  .inline-actions > a,
   .actions > button,
-  .topbar-actions > button {
+  .actions > a,
+  .topbar-actions > button,
+  .topbar-actions > a {
     flex: 1 1 160px;
   }
 }

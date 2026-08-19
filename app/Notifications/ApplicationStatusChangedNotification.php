@@ -12,6 +12,8 @@ class ApplicationStatusChangedNotification extends Notification
 {
     use Queueable;
 
+    public const PAYMENT_URL = 'https://kaspi.kz/pay/ATU';
+
     public function __construct(
         private readonly string $status,
         private readonly ?string $comment,
@@ -40,6 +42,7 @@ class ApplicationStatusChangedNotification extends Notification
 
             return $mail
                 ->line('После оплаты необходимо загрузить подтверждение платежа на conference@atu.edu.kz')
+                ->action('Оплатить через Kaspi', self::PAYMENT_URL)
                 ->salutation('Благодарим за участие!');
         }
 

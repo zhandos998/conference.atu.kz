@@ -87,8 +87,8 @@ class ModeratorWorkflowTest extends TestCase
                 && in_array('Сумма к оплате: 5000 тг.', $mail->introLines, true)
                 && in_array('После оплаты необходимо загрузить подтверждение платежа на conference@atu.edu.kz', $mail->introLines, true)
                 && $mail->salutation === 'Благодарим за участие!'
-                && $mail->actionText === null
-                && $mail->actionUrl === null;
+                && $mail->actionText === 'Оплатить через Kaspi'
+                && $mail->actionUrl === ApplicationStatusChangedNotification::PAYMENT_URL;
         });
     }
 
