@@ -31,8 +31,32 @@ const apiBaseUrl = import.meta.env.VITE_API_URL || `${window.location.origin}/ap
 const apiOrigin = new URL(apiBaseUrl, window.location.origin).origin;
 const toReceiptUrl = (path) => `${apiOrigin}/storage/${path}`;
 const toReportFileUrl = (path) => `${apiOrigin}/storage/${path}`;
+const moderatorPagePath = {
+  dashboard: '/moderator',
+  applications: '/moderator/applications',
+  export: '/moderator/export',
+};
+const moderatorPageTitle = {
+  dashboard: 'Панель',
+  applications: 'Заявки',
+  export: 'Экспорт',
+};
+const getModeratorPageFromLocation = () => {
+  const path = window.location.pathname.replace(/\/+$/, '');
+
+  if (path.endsWith('/moderator/applications') || window.location.hash === '#filters') {
+    return 'applications';
+  }
+
+  if (path.endsWith('/moderator/export') || window.location.hash === '#export') {
+    return 'export';
+  }
+
+  return 'dashboard';
+};
 
 export default function ModeratorDashboard({ onLogout }) {
+  const [activePage, setActivePage] = useState(getModeratorPageFromLocation);
   const [status, setStatus] = useState('');
   const [direction, setDirection] = useState('');
   const [receipt, setReceipt] = useState('');
@@ -95,6 +119,20 @@ export default function ModeratorDashboard({ onLogout }) {
 
     bootstrap();
   }, []);
+
+  useEffect(() => {
+    const handlePopState = () => setActivePage(getModeratorPageFromLocation());
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const openModeratorPage = (page) => {
+    setActivePage(page);
+    window.history.pushState({}, '', moderatorPagePath[page]);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
 
   const openStatusModal = (id, newStatus, currentComment = '') => {
     setStatusModal({ open: true, applicationId: id, newStatus, comment: currentComment || '' });
@@ -178,6 +216,281 @@ export default function ModeratorDashboard({ onLogout }) {
     }
   };
 
+  const renderSubmissionCard = () => (
+    <section className="moderator-action-card">
+      <div>
+        <h2>Прием заявок</h2>
+        <p>Переключатель управляет возможностью отправлять новые и исправленные заявки участниками.</p>
+      </div>
+      <div className="moderator-action-controls">
+        <span className={`submission-toggle-status ${submissionEnabled ? 'is-enabled' : 'is-disabled'}`}>
+          {submissionEnabled ? 'Включен' : 'Отключен'}
+        </span>
+        <button className="btn-primary" type="button" disabled={settingsSaving} onClick={toggleSubmission}>
+          {settingsSaving ? 'Сохранение...' : (submissionEnabled ? 'Отключить' : 'Включить')}
+        </button>
+      </div>
+    </section>
+  );
+
+  const renderDashboardPage = () => (
+    <>
+      <section className="moderator-hero">
+        <div>
+          <p>Conference ATU</p>
+          <h2>Панель модератора конференции</h2>
+          <span>Проверка заявок, управление статусами, прием чеков и экспорт данных в одном рабочем интерфейсе.</span>
+        </div>
+        <div className="moderator-hero-stats">
+          <div>
+            <span>Сегодня</span>
+            <strong>{todayCount}</strong>
+          </div>
+          <div>
+            <span>На рассмотрении</span>
+            <strong>{currentPageStats.pending}</strong>
+          </div>
+          <div>
+            <span>С чеком</span>
+            <strong>{receiptCount}</strong>
+          </div>
+        </div>
+      </section>
+
+      <div className="moderator-kpi-grid">
+        <div className="moderator-kpi-card"><span>Все заявки</span><strong>{pagination.total}</strong></div>
+        <div className="moderator-kpi-card"><span>На странице</span><strong>{items.length}</strong></div>
+        <div className="moderator-kpi-card"><span>Принято</span><strong>{currentPageStats.accepted}</strong></div>
+        <div className="moderator-kpi-card"><span>На доработку</span><strong>{currentPageStats.revision}</strong></div>
+      </div>
+
+      <section className="moderator-action-card">
+        <div>
+          <h2>Заявки участников</h2>
+          <p>Откройте отдельную страницу для фильтров, таблицы, чеков и смены статусов.</p>
+        </div>
+        <button className="btn-primary" type="button" onClick={() => openModeratorPage('applications')}>Открыть заявки</button>
+      </section>
+
+      {renderSubmissionCard()}
+    </>
+  );
+
+  const renderApplicationsPage = () => (
+    <>
+      <section className="moderator-panel">
+        <div className="moderator-panel-head">
+          <div>
+            <h2>Фильтры заявок</h2>
+            <p>Активных фильтров: {activeFilterCount}</p>
+          </div>
+          <button className="btn-primary" type="button" onClick={() => openModeratorPage('export')}>Перейти к экспорту</button>
+        </div>
+
+        <div className="filter-panel moderator-filter-panel">
+          <div className="field control-field">
+            <label>Фильтр по статусу</label>
+            <select value={status} onChange={(e) => changeStatusFilter(e.target.value)}>
+              <option value="">Все</option>
+              <option value="pending">На рассмотрении</option>
+              <option value="accepted">Принято</option>
+              <option value="revision">На доработку</option>
+              <option value="rejected">Отклонено</option>
+            </select>
+          </div>
+
+          <div className="field control-field control-field-wide">
+            <label>Фильтр по направлению</label>
+            <select value={direction} onChange={(e) => changeDirectionFilter(e.target.value)}>
+              <option value="">Все направления</option>
+              {directionOptions.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field control-field">
+            <label>Фильтр по чеку</label>
+            <select value={receipt} onChange={(e) => changeReceiptFilter(e.target.value)}>
+              <option value="">Все</option>
+              <option value="with">С чеком</option>
+              <option value="without">Без чека</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section className="moderator-panel moderator-table-panel">
+        <div className="moderator-panel-head">
+          <div>
+            <h2>Заявки участников</h2>
+            <p>Страница {pagination.currentPage} из {pagination.lastPage}. Показано {pagination.to} из {pagination.total} заявок.</p>
+          </div>
+        </div>
+
+        <div className="table-wrap moderator-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>№</th>
+                <th>Дата создания</th>
+                <th>Участник</th>
+                <th>Доклад</th>
+                <th>Оплата</th>
+                <th>Статус</th>
+                <th>Действия</th>
+                <th>Детали</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.length === 0 && (
+                <tr>
+                  <td colSpan="8">
+                    <div className="empty-state empty-state-table">
+                      <h3>Заявок не найдено</h3>
+                      <p>Измените фильтры или проверьте прием новых заявок.</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+
+              {items.map((app) => {
+                const receiptPath = app.payment_receipt_path;
+                const receiptUrl = receiptPath ? toReceiptUrl(receiptPath) : '';
+                const reportFileUrl = app.file_path ? toReportFileUrl(app.file_path) : '';
+
+                return (
+                  <tr key={app.id}>
+                    <td>{app.id}</td>
+                    <td>{app.created_at ? new Date(app.created_at).toLocaleString('ru-RU') : '-'}</td>
+                    <td>
+                      <div className="moderator-person-cell">
+                        <strong>{app.full_name}</strong>
+                        <span>{app.email}</span>
+                        <span>{app.phone}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="moderator-report-cell">
+                        <strong>{app.report_title}</strong>
+                        <span>{app.direction}</span>
+                        {app.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">Файл доклада</a> : <span>Файл не загружен</span>}
+                      </div>
+                    </td>
+                    <td>{receiptPath ? <a href={receiptUrl} target="_blank" rel="noreferrer">Файл чека</a> : 'Нет'}</td>
+                    <td><span className={statusClass[app.status] || statusClass.pending}>{statusLabel[app.status] || app.status}</span></td>
+                    <td>
+                      <div className="actions">
+                        <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'accepted', app.moderator_comment)}>Принять</button>
+                        <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'revision', app.moderator_comment)}>На доработку</button>
+                        <button className="btn-danger" onClick={() => openStatusModal(app.id, 'rejected', app.moderator_comment)}>Отказать</button>
+                      </div>
+                    </td>
+                    <td>
+                      <details className="moderator-row-details">
+                        <summary>Открыть</summary>
+                        <dl>
+                          <div>
+                            <dt>Ученая степень, звание, должность</dt>
+                            <dd>{app.academic_degree}, {app.organization_position}</dd>
+                          </div>
+                          <div>
+                            <dt>Научный руководитель</dt>
+                            <dd>{app.supervisor_full_name}</dd>
+                          </div>
+                          <div>
+                            <dt>Должность руководителя</dt>
+                            <dd>{app.supervisor_organization_position}</dd>
+                          </div>
+                          <div>
+                            <dt>Степень руководителя</dt>
+                            <dd>{app.supervisor_academic_degree}</dd>
+                          </div>
+                          <div>
+                            <dt>Кафедра</dt>
+                            <dd>{app.department}</dd>
+                          </div>
+                          <div>
+                            <dt>Форма участия</dt>
+                            <dd>{app.participation_form}</dd>
+                          </div>
+                          <div>
+                            <dt>Бронирование гостиницы</dt>
+                            <dd>{app.hotel_booking_needed ? 'Да' : 'Нет'}</dd>
+                          </div>
+                          <div>
+                            <dt>Комментарий модератора</dt>
+                            <dd>{app.moderator_comment || '-'}</dd>
+                          </div>
+                          {receiptPath && (
+                            <div>
+                              <dt>Предпросмотр чека</dt>
+                              <dd>
+                                <div className="receipt-preview">
+                                  {isImagePath(receiptPath) && <img className="receipt-media" src={receiptUrl} alt="Чек" />}
+                                  {isPdfPath(receiptPath) && <iframe className="receipt-frame" title={`receipt-${app.id}`} src={`${receiptUrl}#page=1`} />}
+                                  {!isImagePath(receiptPath) && !isPdfPath(receiptPath) && <span>Предпросмотр недоступен для этого формата</span>}
+                                </div>
+                              </dd>
+                            </div>
+                          )}
+                        </dl>
+                      </details>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="pagination-row moderator-pagination-row">
+          <div className="muted">Показано {pagination.from || 0}-{pagination.to || 0} из {pagination.total} заявок</div>
+          <div className="actions">
+            <button className="btn-secondary" type="button" disabled={pagination.currentPage <= 1} onClick={() => goToPage(pagination.currentPage - 1)}>Назад</button>
+            <button className="btn-secondary" type="button" disabled={pagination.currentPage >= pagination.lastPage} onClick={() => goToPage(pagination.currentPage + 1)}>Вперед</button>
+          </div>
+        </div>
+      </section>
+    </>
+  );
+
+  const renderExportPage = () => (
+    <>
+      <section className="moderator-hero moderator-export-hero">
+        <div>
+          <p>Экспорт</p>
+          <h2>Выгрузка заявок в Excel</h2>
+          <span>Файл формируется сервером и содержит данные заявок конференции для обработки оргкомитетом.</span>
+        </div>
+        <button className="btn-primary btn-primary-light" type="button" onClick={exportExcel}>Скачать Excel</button>
+      </section>
+
+      <div className="moderator-kpi-grid">
+        <div className="moderator-kpi-card"><span>Всего заявок</span><strong>{pagination.total}</strong></div>
+        <div className="moderator-kpi-card"><span>С чеком на странице</span><strong>{receiptCount}</strong></div>
+        <div className="moderator-kpi-card"><span>Принято на странице</span><strong>{currentPageStats.accepted}</strong></div>
+        <div className="moderator-kpi-card"><span>Отклонено на странице</span><strong>{currentPageStats.rejected}</strong></div>
+      </div>
+
+      <section className="moderator-panel">
+        <div className="moderator-panel-head">
+          <div>
+            <h2>Состав выгрузки</h2>
+            <p>В Excel попадают анкеты участников, контакты, направление, статус, комментарий модератора и информация по оплате.</p>
+          </div>
+          <button className="btn-secondary" type="button" onClick={() => openModeratorPage('applications')}>Открыть заявки</button>
+        </div>
+
+        <div className="moderator-export-grid">
+          <div><span>Формат</span><strong>.xlsx</strong></div>
+          <div><span>Источник</span><strong>Заявки конференции</strong></div>
+          <div><span>Доступ</span><strong>Только модератор</strong></div>
+        </div>
+      </section>
+    </>
+  );
+
   return (
     <>
       <div className="moderator-layout">
@@ -191,9 +504,9 @@ export default function ModeratorDashboard({ onLogout }) {
             </div>
 
             <nav className="moderator-nav" aria-label="Панель модератора">
-              <a className="moderator-nav-link is-active" href="#panel">Панель</a>
-              <a className="moderator-nav-link" href="#filters">Заявки</a>
-              <button className="moderator-nav-link" type="button" onClick={exportExcel}>Экспорт</button>
+              <button className={`moderator-nav-link ${activePage === 'dashboard' ? 'is-active' : ''}`} type="button" onClick={() => openModeratorPage('dashboard')}>Панель</button>
+              <button className={`moderator-nav-link ${activePage === 'applications' ? 'is-active' : ''}`} type="button" onClick={() => openModeratorPage('applications')}>Заявки</button>
+              <button className={`moderator-nav-link ${activePage === 'export' ? 'is-active' : ''}`} type="button" onClick={() => openModeratorPage('export')}>Экспорт</button>
             </nav>
           </div>
 
@@ -209,231 +522,13 @@ export default function ModeratorDashboard({ onLogout }) {
 
         <div className="moderator-workspace">
           <header className="moderator-topbar">
-            <h1>Панель</h1>
+            <h1>{moderatorPageTitle[activePage]}</h1>
           </header>
 
-          <main className="moderator-main" id="panel">
-            <section className="moderator-hero">
-              <div>
-                <p>Conference ATU</p>
-                <h2>Панель модератора конференции</h2>
-                <span>Проверка заявок, управление статусами, прием чеков и экспорт данных в одном рабочем интерфейсе.</span>
-              </div>
-              <div className="moderator-hero-stats">
-                <div>
-                  <span>Сегодня</span>
-                  <strong>{todayCount}</strong>
-                </div>
-                <div>
-                  <span>На рассмотрении</span>
-                  <strong>{currentPageStats.pending}</strong>
-                </div>
-                <div>
-                  <span>С чеком</span>
-                  <strong>{receiptCount}</strong>
-                </div>
-              </div>
-            </section>
-
-            <div className="moderator-kpi-grid">
-              <div className="moderator-kpi-card"><span>Все заявки</span><strong>{pagination.total}</strong></div>
-              <div className="moderator-kpi-card"><span>На странице</span><strong>{items.length}</strong></div>
-              <div className="moderator-kpi-card"><span>Принято</span><strong>{currentPageStats.accepted}</strong></div>
-              <div className="moderator-kpi-card"><span>На доработку</span><strong>{currentPageStats.revision}</strong></div>
-            </div>
-
-            <section className="moderator-action-card">
-              <div>
-                <h2>Прием заявок</h2>
-                <p>Переключатель управляет возможностью отправлять новые и исправленные заявки участниками.</p>
-              </div>
-              <div className="moderator-action-controls">
-                <span className={`submission-toggle-status ${submissionEnabled ? 'is-enabled' : 'is-disabled'}`}>
-                  {submissionEnabled ? 'Включен' : 'Отключен'}
-                </span>
-                <button className="btn-primary" type="button" disabled={settingsSaving} onClick={toggleSubmission}>
-                  {settingsSaving ? 'Сохранение...' : (submissionEnabled ? 'Отключить' : 'Включить')}
-                </button>
-              </div>
-            </section>
-
-            <section className="moderator-panel" id="filters">
-              <div className="moderator-panel-head">
-                <div>
-                  <h2>Фильтры заявок</h2>
-                  <p>Активных фильтров: {activeFilterCount}</p>
-                </div>
-                <button className="btn-primary" type="button" onClick={exportExcel}>Экспорт в Excel</button>
-              </div>
-
-              <div className="filter-panel moderator-filter-panel">
-                <div className="field control-field">
-                  <label>Фильтр по статусу</label>
-                  <select value={status} onChange={(e) => changeStatusFilter(e.target.value)}>
-                    <option value="">Все</option>
-                    <option value="pending">На рассмотрении</option>
-                    <option value="accepted">Принято</option>
-                    <option value="revision">На доработку</option>
-                    <option value="rejected">Отклонено</option>
-                  </select>
-                </div>
-
-                <div className="field control-field control-field-wide">
-                  <label>Фильтр по направлению</label>
-                  <select value={direction} onChange={(e) => changeDirectionFilter(e.target.value)}>
-                    <option value="">Все направления</option>
-                    {directionOptions.map((option) => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="field control-field">
-                  <label>Фильтр по чеку</label>
-                  <select value={receipt} onChange={(e) => changeReceiptFilter(e.target.value)}>
-                    <option value="">Все</option>
-                    <option value="with">С чеком</option>
-                    <option value="without">Без чека</option>
-                  </select>
-                </div>
-              </div>
-            </section>
-
-            <section className="moderator-panel moderator-table-panel">
-              <div className="moderator-panel-head">
-                <div>
-                  <h2>Заявки участников</h2>
-                  <p>Страница {pagination.currentPage} из {pagination.lastPage}. Показано {pagination.to} из {pagination.total} заявок.</p>
-                </div>
-                <div className="moderator-panel-actions">
-                  <button className="btn-secondary" type="button" onClick={exportExcel}>Экспорт</button>
-                </div>
-              </div>
-
-              <div className="table-wrap moderator-table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>№</th>
-                      <th>Дата создания</th>
-                      <th>Участник</th>
-                      <th>Доклад</th>
-                      <th>Оплата</th>
-                      <th>Статус</th>
-                      <th>Действия</th>
-                      <th>Детали</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.length === 0 && (
-                      <tr>
-                        <td colSpan="8">
-                          <div className="empty-state empty-state-table">
-                            <h3>Заявок не найдено</h3>
-                            <p>Измените фильтры или проверьте прием новых заявок.</p>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-
-                    {items.map((app) => {
-                      const receiptPath = app.payment_receipt_path;
-                      const receiptUrl = receiptPath ? toReceiptUrl(receiptPath) : '';
-                      const reportFileUrl = app.file_path ? toReportFileUrl(app.file_path) : '';
-
-                      return (
-                        <tr key={app.id}>
-                          <td>{app.id}</td>
-                          <td>{app.created_at ? new Date(app.created_at).toLocaleString('ru-RU') : '-'}</td>
-                          <td>
-                            <div className="moderator-person-cell">
-                              <strong>{app.full_name}</strong>
-                              <span>{app.email}</span>
-                              <span>{app.phone}</span>
-                            </div>
-                          </td>
-                          <td>
-                            <div className="moderator-report-cell">
-                              <strong>{app.report_title}</strong>
-                              <span>{app.direction}</span>
-                              {app.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">Файл доклада</a> : <span>Файл не загружен</span>}
-                            </div>
-                          </td>
-                          <td>{receiptPath ? <a href={receiptUrl} target="_blank" rel="noreferrer">Файл чека</a> : 'Нет'}</td>
-                          <td><span className={statusClass[app.status] || statusClass.pending}>{statusLabel[app.status] || app.status}</span></td>
-                          <td>
-                            <div className="actions">
-                              <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'accepted', app.moderator_comment)}>Принять</button>
-                              <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'revision', app.moderator_comment)}>На доработку</button>
-                              <button className="btn-danger" onClick={() => openStatusModal(app.id, 'rejected', app.moderator_comment)}>Отказать</button>
-                            </div>
-                          </td>
-                          <td>
-                            <details className="moderator-row-details">
-                              <summary>Открыть</summary>
-                              <dl>
-                                <div>
-                                  <dt>Ученая степень, звание, должность</dt>
-                                  <dd>{app.academic_degree}, {app.organization_position}</dd>
-                                </div>
-                                <div>
-                                  <dt>Научный руководитель</dt>
-                                  <dd>{app.supervisor_full_name}</dd>
-                                </div>
-                                <div>
-                                  <dt>Должность руководителя</dt>
-                                  <dd>{app.supervisor_organization_position}</dd>
-                                </div>
-                                <div>
-                                  <dt>Степень руководителя</dt>
-                                  <dd>{app.supervisor_academic_degree}</dd>
-                                </div>
-                                <div>
-                                  <dt>Кафедра</dt>
-                                  <dd>{app.department}</dd>
-                                </div>
-                                <div>
-                                  <dt>Форма участия</dt>
-                                  <dd>{app.participation_form}</dd>
-                                </div>
-                                <div>
-                                  <dt>Бронирование гостиницы</dt>
-                                  <dd>{app.hotel_booking_needed ? 'Да' : 'Нет'}</dd>
-                                </div>
-                                <div>
-                                  <dt>Комментарий модератора</dt>
-                                  <dd>{app.moderator_comment || '-'}</dd>
-                                </div>
-                                {receiptPath && (
-                                  <div>
-                                    <dt>Предпросмотр чека</dt>
-                                    <dd>
-                                      <div className="receipt-preview">
-                                        {isImagePath(receiptPath) && <img className="receipt-media" src={receiptUrl} alt="Чек" />}
-                                        {isPdfPath(receiptPath) && <iframe className="receipt-frame" title={`receipt-${app.id}`} src={`${receiptUrl}#page=1`} />}
-                                        {!isImagePath(receiptPath) && !isPdfPath(receiptPath) && <span>Предпросмотр недоступен для этого формата</span>}
-                                      </div>
-                                    </dd>
-                                  </div>
-                                )}
-                              </dl>
-                            </details>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="pagination-row moderator-pagination-row">
-                <div className="muted">Показано {pagination.from || 0}-{pagination.to || 0} из {pagination.total} заявок</div>
-                <div className="actions">
-                  <button className="btn-secondary" type="button" disabled={pagination.currentPage <= 1} onClick={() => goToPage(pagination.currentPage - 1)}>Назад</button>
-                  <button className="btn-secondary" type="button" disabled={pagination.currentPage >= pagination.lastPage} onClick={() => goToPage(pagination.currentPage + 1)}>Вперед</button>
-                </div>
-              </div>
-            </section>
+          <main className="moderator-main">
+            {activePage === 'dashboard' && renderDashboardPage()}
+            {activePage === 'applications' && renderApplicationsPage()}
+            {activePage === 'export' && renderExportPage()}
           </main>
         </div>
       </div>
