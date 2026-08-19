@@ -34,6 +34,7 @@ body {
     linear-gradient(180deg, #eaf1ff 0, #f6f8fc 280px, #eef2f8 100%);
   color: var(--text);
   overflow-x: hidden;
+  overflow-y: auto;
 }
 
 a {
@@ -550,7 +551,8 @@ textarea:focus {
   width: 100%;
   max-width: 100vw;
   min-height: 100vh;
-  overflow-x: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
   background: #f4f7fc;
 }
 
@@ -674,7 +676,8 @@ textarea:focus {
 .moderator-workspace {
   min-width: 0;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 .moderator-topbar {
@@ -704,6 +707,7 @@ textarea:focus {
   gap: 22px;
   min-width: 0;
   max-width: 100%;
+  overflow: visible;
   padding: 32px 40px 48px;
 }
 
