@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/client';
 import Modal from '../../components/Modal';
+import { LanguageSwitcher, directionOptions, formatDateTime, getDirectionLabel, useI18n } from '../../i18n';
 
 const initialForm = {
   full_name: '',
@@ -19,15 +20,6 @@ const initialForm = {
   file: null,
 };
 
-const directionOptions = [
-  'Технология пищевых и перерабатывающих производств',
-  'Легкая и текстильная промышленность',
-  'Механизация, автоматизация и информатизация технологических процессов',
-  'Общеэкономические проблемы, индустрия гостеприимства',
-  'Естественные науки',
-  'Социально-гуманитарные науки',
-];
-
 const statusClass = {
   pending: 'status status-pending',
   accepted: 'status status-accepted',
@@ -36,10 +28,10 @@ const statusClass = {
 };
 
 const statusLabel = {
-  pending: 'На рассмотрении',
-  accepted: 'Принято',
-  revision: 'На доработку',
-  rejected: 'Отклонено',
+  pending: 'status.pending',
+  accepted: 'status.accepted',
+  revision: 'status.revision',
+  rejected: 'status.rejected',
 };
 
 const toForm = (application) => ({
@@ -69,13 +61,14 @@ const getUserApplicationIdFromLocation = () => {
   return match ? Number(match[1]) : null;
 };
 const viewTitle = {
-  list: 'Мои заявки',
-  create: 'Новая заявка',
-  detail: 'Просмотр заявки',
-  edit: 'Редактирование заявки',
+  list: 'user.page.list',
+  create: 'user.page.create',
+  detail: 'user.page.detail',
+  edit: 'user.page.edit',
 };
 
 export default function UserDashboard({ user, onLogout }) {
+  const { language, t } = useI18n();
   const [view, setView] = useState('list');
   const [applications, setApplications] = useState([]);
   const [selectedApplication, setSelectedApplication] = useState(null);
@@ -94,7 +87,8 @@ export default function UserDashboard({ user, onLogout }) {
 
     return acc;
   }, { total: 0, pending: 0, accepted: 0, revision: 0, rejected: 0 });
-  const userName = user?.name || user?.email || 'Участник';
+  const userName = user?.name || user?.email || t('user.fallbackName');
+  const statusText = (status) => (statusLabel[status] ? t(statusLabel[status]) : status);
 
   const loadApplications = async () => {
     const { data } = await api.get('/applications');
@@ -131,7 +125,7 @@ export default function UserDashboard({ user, onLogout }) {
       setSelectedApplication(data);
       setView('detail');
     } catch (err) {
-      setError(err.response?.data?.message || 'Не удалось открыть заявку.');
+      setError(err.response?.data?.message || t('user.message.openError'));
     }
   };
 
@@ -152,13 +146,13 @@ export default function UserDashboard({ user, onLogout }) {
 
     if (successMessage) {
       setMessage(successMessage);
-      openNotice('Заявка отправлена', successMessage);
+      openNotice(t('user.notice.submittedTitle'), successMessage);
     }
   };
 
   const goToCreate = () => {
     if (!submissionEnabled) {
-      openNotice('Прием заявок отключен', 'Менеджер временно отключил отправку заявок.');
+      openNotice(t('user.notice.submissionDisabledTitle'), t('user.notice.submissionDisabledMessage'));
       return;
     }
 
@@ -174,12 +168,12 @@ export default function UserDashboard({ user, onLogout }) {
     }
 
     if (!submissionEnabled) {
-      openNotice('Повторная отправка отключена', 'Менеджер временно отключил отправку заявок.');
+      openNotice(t('user.notice.resubmissionDisabledTitle'), t('user.notice.submissionDisabledMessage'));
       return;
     }
 
     if (selectedApplication.status !== 'revision') {
-      openNotice('Редактирование недоступно', 'Изменить заявку можно только при статусе "На доработку".');
+      openNotice(t('user.notice.editUnavailableTitle'), t('user.notice.editUnavailableMessage'));
       return;
     }
 
@@ -209,17 +203,17 @@ export default function UserDashboard({ user, onLogout }) {
     setError('');
 
     if (!submissionEnabled) {
-      setError('Менеджер временно отключил отправку заявок.');
+      setError(t('user.message.createBlocked'));
       return;
     }
 
     try {
       await api.post('/applications', buildPayload());
       await goToList({
-        successMessage: 'Ваша заявка успешно отправлена. Статус можно отслеживать в списке заявок.',
+        successMessage: t('user.notice.submittedMessage'),
       });
     } catch (err) {
-      setError(err.response?.data?.message || 'Ошибка при отправке заявки.');
+      setError(err.response?.data?.message || t('user.message.createError'));
     }
   };
 
@@ -233,7 +227,7 @@ export default function UserDashboard({ user, onLogout }) {
     }
 
     if (!submissionEnabled) {
-      setError('Менеджер временно отключил отправку заявок.');
+      setError(t('user.message.createBlocked'));
       return;
     }
 
@@ -244,11 +238,11 @@ export default function UserDashboard({ user, onLogout }) {
 
       const { data } = await api.get(`/applications/${selectedApplication.id}`);
       setSelectedApplication(data);
-      setMessage('Исправленная заявка отправлена на повторное рассмотрение.');
+      setMessage(t('user.message.updateSuccess'));
       setView('detail');
       await loadApplications();
     } catch (err) {
-      setError(err.response?.data?.message || 'Ошибка при обновлении заявки.');
+      setError(err.response?.data?.message || t('user.message.updateError'));
     }
   };
 
@@ -258,7 +252,7 @@ export default function UserDashboard({ user, onLogout }) {
     setError('');
 
     if (!selectedApplication || !paymentReceipt) {
-      openNotice('Чек не выбран', 'Перед отправкой нужно выбрать файл чека.');
+      openNotice(t('user.notice.receiptMissingTitle'), t('user.notice.receiptMissingMessage'));
       return;
     }
 
@@ -270,88 +264,88 @@ export default function UserDashboard({ user, onLogout }) {
       const { data } = await api.get(`/applications/${selectedApplication.id}`);
       setSelectedApplication(data);
       setPaymentReceipt(null);
-      setMessage('Чек успешно загружен.');
+      setMessage(t('user.message.receiptSuccess'));
       await loadApplications();
     } catch (err) {
-      setError(err.response?.data?.message || 'Ошибка загрузки чека.');
+      setError(err.response?.data?.message || t('user.message.receiptError'));
     }
   };
 
   const renderApplicationForm = (onSubmit, submitLabel) => (
     <form onSubmit={onSubmit} className="application-form">
-      {!submissionEnabled && <p className="error-text">Прием заявок временно отключен менеджером.</p>}
+      {!submissionEnabled && <p className="error-text">{t('user.form.disabled')}</p>}
 
-      <div className="form-section-title">{view === 'edit' ? 'Обновите данные доклада' : 'Заполните данные участника и доклада'}</div>
+      <div className="form-section-title">{view === 'edit' ? t('user.form.editHint') : t('user.form.createHint')}</div>
       <div className="grid">
         <div className="field">
-          <label>Ф.И.О.</label>
+          <label>{t('user.form.fullName')}</label>
           <input required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
         </div>
         <div className="field">
-          <label>Место учебы/работы и должность</label>
+          <label>{t('user.form.organizationPosition')}</label>
           <input required value={form.organization_position} onChange={(e) => setForm({ ...form, organization_position: e.target.value })} />
         </div>
         <div className="field">
-          <label>Ученая степень</label>
+          <label>{t('user.form.academicDegree')}</label>
           <input required value={form.academic_degree} onChange={(e) => setForm({ ...form, academic_degree: e.target.value })} />
         </div>
         <div className="field">
-          <label>Телефон</label>
+          <label>{t('user.form.phone')}</label>
           <input required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
         </div>
         <div className="field">
-          <label>Email</label>
+          <label>{t('common.email')}</label>
           <input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         </div>
         <div className="field">
-          <label>Ф.И.О. научного руководителя</label>
+          <label>{t('user.form.supervisorFullName')}</label>
           <input required value={form.supervisor_full_name} onChange={(e) => setForm({ ...form, supervisor_full_name: e.target.value })} />
         </div>
         <div className="field">
-          <label>Должность научного руководителя</label>
+          <label>{t('user.form.supervisorPosition')}</label>
           <input required value={form.supervisor_organization_position} onChange={(e) => setForm({ ...form, supervisor_organization_position: e.target.value })} />
         </div>
         <div className="field">
-          <label>Степень научного руководителя</label>
+          <label>{t('user.form.supervisorDegree')}</label>
           <input required value={form.supervisor_academic_degree} onChange={(e) => setForm({ ...form, supervisor_academic_degree: e.target.value })} />
         </div>
         <div className="field">
-          <label>Кафедра</label>
+          <label>{t('user.form.department')}</label>
           <input required value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
         </div>
         <div className="field">
-          <label>Название доклада</label>
+          <label>{t('user.form.reportTitle')}</label>
           <input required value={form.report_title} onChange={(e) => setForm({ ...form, report_title: e.target.value })} />
         </div>
         <div className="field">
-          <label>Направление</label>
+          <label>{t('user.form.direction')}</label>
           <select required value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value })}>
-            <option value="" disabled>Выберите направление</option>
+            <option value="" disabled>{t('user.form.selectDirection')}</option>
             {directionOptions.map((option) => (
-              <option key={option} value={option}>{option}</option>
+              <option key={option.key} value={option.value}>{t(`directions.${option.key}`)}</option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label>Форма участия</label>
+          <label>{t('user.form.participationForm')}</label>
           <input required value={form.participation_form} onChange={(e) => setForm({ ...form, participation_form: e.target.value })} />
         </div>
         <div className="field">
-          <label>Бронирование гостиницы</label>
+          <label>{t('user.form.hotelBooking')}</label>
           <select value={String(form.hotel_booking_needed)} onChange={(e) => setForm({ ...form, hotel_booking_needed: e.target.value === 'true' })}>
-            <option value="false">Нет</option>
-            <option value="true">Да</option>
+            <option value="false">{t('common.no')}</option>
+            <option value="true">{t('common.yes')}</option>
           </select>
         </div>
         <div className="field">
-          <label>Файл доклада (PDF/DOC/DOCX)</label>
+          <label>{t('user.form.file')}</label>
           <input type="file" accept=".pdf,.doc,.docx" onChange={(e) => setForm({ ...form, file: e.target.files?.[0] || null })} />
         </div>
       </div>
 
       <div className="inline-actions">
         <button className="btn-primary" type="submit" disabled={!submissionEnabled}>{submitLabel}</button>
-        <button className="btn-secondary" type="button" onClick={goToList}>Назад к списку</button>
+        <button className="btn-secondary" type="button" onClick={goToList}>{t('user.form.backToList')}</button>
       </div>
     </form>
   );
@@ -360,18 +354,18 @@ export default function UserDashboard({ user, onLogout }) {
     <section className="user-panel">
       <div className="user-panel-head">
         <div>
-          <h2>{viewTitle.list}</h2>
-          <p>Всего заявок: {applicationStats.total}</p>
+          <h2>{t(viewTitle.list)}</h2>
+          <p>{t('user.list.total', { total: applicationStats.total })}</p>
         </div>
-        <button className="btn-primary" type="button" onClick={goToCreate} disabled={!submissionEnabled}>Добавить заявку</button>
+        <button className="btn-primary" type="button" onClick={goToCreate} disabled={!submissionEnabled}>{t('user.list.add')}</button>
       </div>
 
-      {!submissionEnabled && <p className="error-text">Прием заявок сейчас отключен менеджером.</p>}
+      {!submissionEnabled && <p className="error-text">{t('user.list.disabled')}</p>}
 
       {applications.length === 0 ? (
         <div className="empty-state">
-          <h3>Пока нет заявок</h3>
-          <p>После отправки доклада здесь появятся статус, дата создания и ссылка на карточку заявки.</p>
+          <h3>{t('user.list.emptyTitle')}</h3>
+          <p>{t('user.list.emptyText')}</p>
         </div>
       ) : (
         <div className="user-application-list">
@@ -380,12 +374,12 @@ export default function UserDashboard({ user, onLogout }) {
               <div>
                 <div className="user-application-row-head">
                   <h3 className="app-title">{app.report_title}</h3>
-                  <span className={statusClass[app.status] || statusClass.pending}>{statusLabel[app.status] || app.status}</span>
+                  <span className={statusClass[app.status] || statusClass.pending}>{statusText(app.status)}</span>
                 </div>
-                <p className="app-meta">{new Date(app.created_at).toLocaleString('ru-RU')}</p>
+                <p className="app-meta">{formatDateTime(app.created_at, language)}</p>
               </div>
               <div className="user-row-actions">
-                <a className="btn-secondary" href={`/applications/${app.id}`} target="_blank" rel="noreferrer">Открыть заявку</a>
+                <a className="btn-secondary" href={`/applications/${app.id}`} target="_blank" rel="noreferrer">{t('user.list.openApplication')}</a>
               </div>
             </div>
           ))}
@@ -398,8 +392,8 @@ export default function UserDashboard({ user, onLogout }) {
     <section className="user-panel user-form-panel">
       <div className="user-panel-head">
         <div>
-          <h2>{viewTitle[view]}</h2>
-          <p>{view === 'edit' ? 'Исправьте заявку и отправьте ее повторно.' : 'Заполните данные участника и доклада.'}</p>
+          <h2>{t(viewTitle[view])}</h2>
+          <p>{view === 'edit' ? t('user.form.editPanelText') : t('user.form.createPanelText')}</p>
         </div>
       </div>
       {renderApplicationForm(onSubmit, submitLabel)}
@@ -411,7 +405,7 @@ export default function UserDashboard({ user, onLogout }) {
       return (
         <section className="user-panel">
           <div className="empty-state">
-            <h3>Заявка не выбрана</h3>
+            <h3>{t('user.detail.notSelected')}</h3>
           </div>
         </section>
       );
@@ -423,44 +417,44 @@ export default function UserDashboard({ user, onLogout }) {
       <section className="user-panel user-detail-section">
         <div className="user-panel-head">
           <div>
-            <h2>{viewTitle.detail}</h2>
-            <p>Заявка #{selectedApplication.id}</p>
+            <h2>{t(viewTitle.detail)}</h2>
+            <p>{t('user.detail.applicationNumber', { id: selectedApplication.id })}</p>
           </div>
-          <span className={statusClass[selectedApplication.status] || statusClass.pending}>{statusLabel[selectedApplication.status] || selectedApplication.status}</span>
+          <span className={statusClass[selectedApplication.status] || statusClass.pending}>{statusText(selectedApplication.status)}</span>
         </div>
 
         <div className="inline-actions user-detail-actions">
-          <button className="btn-secondary" type="button" onClick={goToList}>К списку заявок</button>
-          <button className="btn-primary" type="button" onClick={goToEdit} disabled={!submissionEnabled}>Изменить заявку</button>
+          <button className="btn-secondary" type="button" onClick={goToList}>{t('user.detail.backToList')}</button>
+          <button className="btn-primary" type="button" onClick={goToEdit} disabled={!submissionEnabled}>{t('user.detail.edit')}</button>
         </div>
 
         <div className="detail-panel">
           <div className="detail-head">
             <div>
-              <p className="section-kicker">Доклад</p>
+              <p className="section-kicker">{t('user.detail.report')}</p>
               <h2>{selectedApplication.report_title}</h2>
             </div>
           </div>
 
           <div className="detail-grid">
-            <div><span>Ф.И.О.</span><strong>{selectedApplication.full_name}</strong></div>
-            <div><span>Место учебы/работы и должность</span><strong>{selectedApplication.organization_position}</strong></div>
-            <div><span>Ученая степень</span><strong>{selectedApplication.academic_degree}</strong></div>
-            <div><span>Телефон</span><strong>{selectedApplication.phone}</strong></div>
-            <div><span>Email</span><strong>{selectedApplication.email}</strong></div>
-            <div><span>Научный руководитель</span><strong>{selectedApplication.supervisor_full_name}</strong></div>
-            <div><span>Должность руководителя</span><strong>{selectedApplication.supervisor_organization_position}</strong></div>
-            <div><span>Степень руководителя</span><strong>{selectedApplication.supervisor_academic_degree}</strong></div>
-            <div><span>Кафедра</span><strong>{selectedApplication.department}</strong></div>
-            <div><span>Направление</span><strong>{selectedApplication.direction}</strong></div>
-            <div><span>Форма участия</span><strong>{selectedApplication.participation_form}</strong></div>
-            <div><span>Бронирование гостиницы</span><strong>{selectedApplication.hotel_booking_needed ? 'Да' : 'Нет'}</strong></div>
-            <div><span>Дата создания</span><strong>{selectedApplication.created_at ? new Date(selectedApplication.created_at).toLocaleString('ru-RU') : '-'}</strong></div>
-            <div><span>Файл доклада</span><strong>{selectedApplication.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">Открыть файл</a> : 'Файл не загружен'}</strong></div>
+            <div><span>{t('user.form.fullName')}</span><strong>{selectedApplication.full_name}</strong></div>
+            <div><span>{t('user.form.organizationPosition')}</span><strong>{selectedApplication.organization_position}</strong></div>
+            <div><span>{t('user.form.academicDegree')}</span><strong>{selectedApplication.academic_degree}</strong></div>
+            <div><span>{t('user.form.phone')}</span><strong>{selectedApplication.phone}</strong></div>
+            <div><span>{t('common.email')}</span><strong>{selectedApplication.email}</strong></div>
+            <div><span>{t('user.form.supervisorFullName')}</span><strong>{selectedApplication.supervisor_full_name}</strong></div>
+            <div><span>{t('user.form.supervisorPosition')}</span><strong>{selectedApplication.supervisor_organization_position}</strong></div>
+            <div><span>{t('user.form.supervisorDegree')}</span><strong>{selectedApplication.supervisor_academic_degree}</strong></div>
+            <div><span>{t('user.form.department')}</span><strong>{selectedApplication.department}</strong></div>
+            <div><span>{t('user.form.direction')}</span><strong>{getDirectionLabel(selectedApplication.direction, t)}</strong></div>
+            <div><span>{t('user.form.participationForm')}</span><strong>{selectedApplication.participation_form}</strong></div>
+            <div><span>{t('user.form.hotelBooking')}</span><strong>{selectedApplication.hotel_booking_needed ? t('common.yes') : t('common.no')}</strong></div>
+            <div><span>{t('user.detail.createdAt')}</span><strong>{formatDateTime(selectedApplication.created_at, language)}</strong></div>
+            <div><span>{t('user.detail.reportFile')}</span><strong>{selectedApplication.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">{t('user.detail.openFile')}</a> : t('user.detail.fileMissing')}</strong></div>
           </div>
 
           <div className="comment-panel">
-            <span>Комментарий модератора</span>
+            <span>{t('user.detail.moderatorComment')}</span>
             <p>{selectedApplication.moderator_comment || '-'}</p>
           </div>
         </div>
@@ -468,11 +462,11 @@ export default function UserDashboard({ user, onLogout }) {
         {selectedApplication.status === 'accepted' && (
           <form onSubmit={submitPaymentReceipt} className="receipt-upload-panel">
             <div className="field" style={{ maxWidth: 420 }}>
-              <label>Загрузка чека об оплате</label>
+              <label>{t('user.receipt.upload')}</label>
               <input type="file" onChange={(e) => setPaymentReceipt(e.target.files?.[0] || null)} />
             </div>
             <div className="inline-actions">
-              <button className="btn-primary" type="submit">Загрузить чек</button>
+              <button className="btn-primary" type="submit">{t('user.receipt.submit')}</button>
             </div>
           </form>
         )}
@@ -487,21 +481,18 @@ export default function UserDashboard({ user, onLogout }) {
           <div className="user-topbar-inner">
             <div className="user-brand-nav">
               <img className="user-logo" src="/brand/atu-logo-long.png" alt="Almaty Technological University" />
-              <nav className="user-nav" aria-label="Кабинет участника">
-                <button className={`user-nav-link ${['list', 'detail'].includes(view) ? 'is-active' : ''}`} type="button" onClick={goToList}>Панель</button>
-                <button className={`user-nav-link ${['create', 'edit'].includes(view) ? 'is-active' : ''}`} type="button" onClick={goToCreate} disabled={!submissionEnabled}>Заявки</button>
+              <nav className="user-nav" aria-label={t('user.hero.title')}>
+                <button className={`user-nav-link ${['list', 'detail'].includes(view) ? 'is-active' : ''}`} type="button" onClick={goToList}>{t('user.nav.dashboard')}</button>
+                <button className={`user-nav-link ${['create', 'edit'].includes(view) ? 'is-active' : ''}`} type="button" onClick={goToCreate} disabled={!submissionEnabled}>{t('user.nav.applications')}</button>
               </nav>
             </div>
 
             <div className="user-topbar-actions">
-              <div className="user-language" aria-label="Язык интерфейса">
-                <button className="is-active" type="button">RU</button>
-                <button type="button">KZ</button>
-              </div>
+              <LanguageSwitcher className="user-language" />
               <details className="user-account-menu">
                 <summary>{userName}</summary>
                 <div>
-                  <button type="button" onClick={onLogout}>Выйти</button>
+                  <button type="button" onClick={onLogout}>{t('common.logout')}</button>
                 </div>
               </details>
             </div>
@@ -510,7 +501,7 @@ export default function UserDashboard({ user, onLogout }) {
 
         <div className="user-page-title">
           <div className="user-container">
-            <h1>{view === 'list' ? 'Панель' : viewTitle[view]}</h1>
+            <h1>{view === 'list' ? t('user.nav.dashboard') : t(viewTitle[view])}</h1>
           </div>
         </div>
 
@@ -518,30 +509,30 @@ export default function UserDashboard({ user, onLogout }) {
           <div className="user-container user-content">
             <section className="user-hero">
               <div>
-                <p>Conference ATU</p>
-                <h2>Кабинет участника конференции</h2>
-                <span>Заявки, статусы, файлы докладов и чеки в едином рабочем интерфейсе.</span>
+                <p>{t('user.hero.kicker')}</p>
+                <h2>{t('user.hero.title')}</h2>
+                <span>{t('user.hero.subtitle')}</span>
               </div>
               <div className="user-hero-stats">
-                <div><span>Заявок</span><strong>{applicationStats.total}</strong></div>
-                <div><span>На доработку</span><strong>{applicationStats.revision}</strong></div>
+                <div><span>{t('user.hero.applications')}</span><strong>{applicationStats.total}</strong></div>
+                <div><span>{t('user.hero.revision')}</span><strong>{applicationStats.revision}</strong></div>
               </div>
             </section>
 
             <div className="summary-grid user-summary-grid">
-              <div className="summary-item"><span>Всего</span><strong>{applicationStats.total}</strong></div>
-              <div className="summary-item"><span>На рассмотрении</span><strong>{applicationStats.pending}</strong></div>
-              <div className="summary-item"><span>Принято</span><strong>{applicationStats.accepted}</strong></div>
-              <div className="summary-item"><span>На доработку</span><strong>{applicationStats.revision}</strong></div>
+              <div className="summary-item"><span>{t('user.summary.total')}</span><strong>{applicationStats.total}</strong></div>
+              <div className="summary-item"><span>{t('user.summary.pending')}</span><strong>{applicationStats.pending}</strong></div>
+              <div className="summary-item"><span>{t('user.summary.accepted')}</span><strong>{applicationStats.accepted}</strong></div>
+              <div className="summary-item"><span>{t('user.summary.revision')}</span><strong>{applicationStats.revision}</strong></div>
             </div>
 
             {message && <p className="user-message">{message}</p>}
             {error && <p className="error-text">{error}</p>}
 
             {view === 'list' && renderList()}
-            {view === 'create' && renderFormPanel(submitCreate, 'Отправить заявку')}
+            {view === 'create' && renderFormPanel(submitCreate, t('user.form.submitCreate'))}
             {view === 'detail' && renderDetail()}
-            {view === 'edit' && renderFormPanel(submitEdit, 'Сохранить изменения')}
+            {view === 'edit' && renderFormPanel(submitEdit, t('user.form.submitEdit'))}
           </div>
         </main>
       </div>
@@ -550,7 +541,7 @@ export default function UserDashboard({ user, onLogout }) {
         open={noticeModal.open}
         title={noticeModal.title}
         onClose={closeNotice}
-        actions={<button className="btn-primary" type="button" onClick={closeNotice}>Понятно</button>}
+        actions={<button className="btn-primary" type="button" onClick={closeNotice}>{t('common.understood')}</button>}
       >
         <p style={{ margin: 0 }}>{noticeModal.message}</p>
       </Modal>

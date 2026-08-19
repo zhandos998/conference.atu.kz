@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/client';
 import Modal from '../../components/Modal';
+import { LanguageSwitcher, directionOptions, formatDateTime, getDirectionLabel, useI18n } from '../../i18n';
 
 const statusClass = {
   pending: 'status status-pending',
@@ -10,20 +11,11 @@ const statusClass = {
 };
 
 const statusLabel = {
-  pending: 'На рассмотрении',
-  accepted: 'Принято',
-  revision: 'На доработку',
-  rejected: 'Отклонено',
+  pending: 'status.pending',
+  accepted: 'status.accepted',
+  revision: 'status.revision',
+  rejected: 'status.rejected',
 };
-
-const directionOptions = [
-  'Технология пищевых и перерабатывающих производств',
-  'Легкая и текстильная промышленность',
-  'Механизация, автоматизация и информатизация технологических процессов',
-  'Общеэкономические проблемы, индустрия гостеприимства',
-  'Естественные науки',
-  'Социально-гуманитарные науки',
-];
 
 const apiBaseUrl = import.meta.env.VITE_API_URL || `${window.location.origin}/api`;
 const apiOrigin = new URL(apiBaseUrl, window.location.origin).origin;
@@ -35,10 +27,10 @@ const moderatorPagePath = {
   export: '/moderator/export',
 };
 const moderatorPageTitle = {
-  dashboard: 'Панель',
-  applications: 'Заявки',
-  applicationDetail: 'Заявка',
-  export: 'Экспорт',
+  dashboard: 'moderator.page.dashboard',
+  applications: 'moderator.page.applications',
+  applicationDetail: 'moderator.page.applicationDetail',
+  export: 'moderator.page.export',
 };
 const getModeratorApplicationIdFromLocation = () => {
   const path = window.location.pathname.replace(/\/+$/, '');
@@ -65,6 +57,7 @@ const getModeratorPageFromLocation = () => {
 };
 
 export default function ModeratorDashboard({ onLogout }) {
+  const { language, t } = useI18n();
   const [activePage, setActivePage] = useState(getModeratorPageFromLocation);
   const [activeApplicationId, setActiveApplicationId] = useState(getModeratorApplicationIdFromLocation);
   const [status, setStatus] = useState('');
@@ -95,6 +88,7 @@ export default function ModeratorDashboard({ onLogout }) {
     return new Date(application.created_at).toDateString() === new Date().toDateString();
   }).length;
   const receiptCount = items.filter((application) => application.payment_receipt_path).length;
+  const statusText = (nextStatus) => (statusLabel[nextStatus] ? t(statusLabel[nextStatus]) : nextStatus);
 
   const load = async (
     nextPage = pagination.currentPage,
@@ -164,7 +158,7 @@ export default function ModeratorDashboard({ onLogout }) {
         setSelectedApplication(data);
       } catch (err) {
         setSelectedApplication(null);
-        setApplicationDetailError(err.response?.data?.message || 'Не удалось открыть заявку.');
+        setApplicationDetailError(err.response?.data?.message || t('moderator.message.detailError'));
       } finally {
         setApplicationDetailLoading(false);
       }
@@ -200,7 +194,7 @@ export default function ModeratorDashboard({ onLogout }) {
       closeStatusModal();
       await load(pagination.currentPage, status, direction, receipt, fullNameSearch, reportTitleSearch);
     } catch (err) {
-      setErrorModal({ open: true, message: err.response?.data?.message || 'Не удалось изменить статус заявки.' });
+      setErrorModal({ open: true, message: err.response?.data?.message || t('moderator.message.statusError') });
     }
   };
 
@@ -222,7 +216,7 @@ export default function ModeratorDashboard({ onLogout }) {
       link.remove();
       URL.revokeObjectURL(url);
     } catch {
-      setErrorModal({ open: true, message: 'Не удалось выгрузить Excel.' });
+      setErrorModal({ open: true, message: t('moderator.message.exportError') });
     }
   };
 
@@ -273,7 +267,7 @@ export default function ModeratorDashboard({ onLogout }) {
       });
       setSubmissionEnabled(Boolean(data?.enabled));
     } catch (err) {
-      setErrorModal({ open: true, message: err.response?.data?.message || 'Не удалось обновить настройку приема заявок.' });
+      setErrorModal({ open: true, message: err.response?.data?.message || t('moderator.message.submissionError') });
     } finally {
       setSettingsSaving(false);
     }
@@ -282,15 +276,15 @@ export default function ModeratorDashboard({ onLogout }) {
   const renderSubmissionCard = () => (
     <section className="moderator-action-card">
       <div>
-        <h2>Прием заявок</h2>
-        <p>Переключатель управляет возможностью отправлять новые и исправленные заявки участниками.</p>
+        <h2>{t('moderator.submission.title')}</h2>
+        <p>{t('moderator.submission.text')}</p>
       </div>
       <div className="moderator-action-controls">
         <span className={`submission-toggle-status ${submissionEnabled ? 'is-enabled' : 'is-disabled'}`}>
-          {submissionEnabled ? 'Включен' : 'Отключен'}
+          {submissionEnabled ? t('moderator.submission.enabled') : t('moderator.submission.disabled')}
         </span>
         <button className="btn-primary" type="button" disabled={settingsSaving} onClick={toggleSubmission}>
-          {settingsSaving ? 'Сохранение...' : (submissionEnabled ? 'Отключить' : 'Включить')}
+          {settingsSaving ? t('moderator.submission.saving') : (submissionEnabled ? t('moderator.submission.disable') : t('moderator.submission.enable'))}
         </button>
       </div>
     </section>
@@ -300,39 +294,39 @@ export default function ModeratorDashboard({ onLogout }) {
     <>
       <section className="moderator-hero">
         <div>
-          <p>Conference ATU</p>
-          <h2>Панель модератора конференции</h2>
-          <span>Проверка заявок, управление статусами, прием чеков и экспорт данных в одном рабочем интерфейсе.</span>
+          <p>{t('moderator.dashboard.heroKicker')}</p>
+          <h2>{t('moderator.dashboard.heroTitle')}</h2>
+          <span>{t('moderator.dashboard.heroSubtitle')}</span>
         </div>
         <div className="moderator-hero-stats">
           <div>
-            <span>Сегодня</span>
+            <span>{t('moderator.dashboard.today')}</span>
             <strong>{todayCount}</strong>
           </div>
           <div>
-            <span>На рассмотрении</span>
+            <span>{t('moderator.dashboard.pending')}</span>
             <strong>{currentPageStats.pending}</strong>
           </div>
           <div>
-            <span>С чеком</span>
+            <span>{t('moderator.dashboard.withReceipt')}</span>
             <strong>{receiptCount}</strong>
           </div>
         </div>
       </section>
 
       <div className="moderator-kpi-grid">
-        <div className="moderator-kpi-card"><span>Все заявки</span><strong>{pagination.total}</strong></div>
-        <div className="moderator-kpi-card"><span>На странице</span><strong>{items.length}</strong></div>
-        <div className="moderator-kpi-card"><span>Принято</span><strong>{currentPageStats.accepted}</strong></div>
-        <div className="moderator-kpi-card"><span>На доработку</span><strong>{currentPageStats.revision}</strong></div>
+        <div className="moderator-kpi-card"><span>{t('moderator.dashboard.allApplications')}</span><strong>{pagination.total}</strong></div>
+        <div className="moderator-kpi-card"><span>{t('moderator.dashboard.onPage')}</span><strong>{items.length}</strong></div>
+        <div className="moderator-kpi-card"><span>{t('moderator.dashboard.accepted')}</span><strong>{currentPageStats.accepted}</strong></div>
+        <div className="moderator-kpi-card"><span>{t('moderator.dashboard.revision')}</span><strong>{currentPageStats.revision}</strong></div>
       </div>
 
       <section className="moderator-action-card">
         <div>
-          <h2>Заявки участников</h2>
-          <p>Откройте отдельную страницу для фильтров, таблицы, чеков и смены статусов.</p>
+          <h2>{t('moderator.dashboard.applicationsTitle')}</h2>
+          <p>{t('moderator.dashboard.applicationsText')}</p>
         </div>
-        <button className="btn-primary" type="button" onClick={() => openModeratorPage('applications')}>Открыть заявки</button>
+        <button className="btn-primary" type="button" onClick={() => openModeratorPage('applications')}>{t('moderator.dashboard.openApplications')}</button>
       </section>
 
       {renderSubmissionCard()}
@@ -344,66 +338,66 @@ export default function ModeratorDashboard({ onLogout }) {
       <section className="moderator-panel">
         <div className="moderator-panel-head">
           <div>
-            <h2>Фильтры заявок</h2>
-            <p>Активных фильтров: {activeFilterCount}</p>
+            <h2>{t('moderator.filters.title')}</h2>
+            <p>{t('moderator.filters.active', { count: activeFilterCount })}</p>
           </div>
-          <button className="btn-primary" type="button" onClick={() => openModeratorPage('export')}>Перейти к экспорту</button>
+          <button className="btn-primary" type="button" onClick={() => openModeratorPage('export')}>{t('moderator.filters.toExport')}</button>
         </div>
 
         <form className="filter-panel moderator-filter-panel" onSubmit={applySearchFilters}>
           <div className="field control-field">
-            <label>Фильтр по статусу</label>
+            <label>{t('moderator.filters.status')}</label>
             <select value={status} onChange={(e) => changeStatusFilter(e.target.value)}>
-              <option value="">Все</option>
-              <option value="pending">На рассмотрении</option>
-              <option value="accepted">Принято</option>
-              <option value="revision">На доработку</option>
-              <option value="rejected">Отклонено</option>
+              <option value="">{t('common.all')}</option>
+              <option value="pending">{t('status.pending')}</option>
+              <option value="accepted">{t('status.accepted')}</option>
+              <option value="revision">{t('status.revision')}</option>
+              <option value="rejected">{t('status.rejected')}</option>
             </select>
           </div>
 
           <div className="field control-field control-field-wide">
-            <label>Фильтр по направлению</label>
+            <label>{t('moderator.filters.direction')}</label>
             <select value={direction} onChange={(e) => changeDirectionFilter(e.target.value)}>
-              <option value="">Все направления</option>
+              <option value="">{t('moderator.filters.allDirections')}</option>
               {directionOptions.map((option) => (
-                <option key={option} value={option}>{option}</option>
+                <option key={option.key} value={option.value}>{t(`directions.${option.key}`)}</option>
               ))}
             </select>
           </div>
 
           <div className="field control-field">
-            <label>ФИО автора</label>
+            <label>{t('moderator.filters.author')}</label>
             <input
               type="search"
               value={fullNameSearch}
               onChange={(e) => setFullNameSearch(e.target.value)}
-              placeholder="Введите ФИО автора"
+              placeholder={t('moderator.filters.authorPlaceholder')}
             />
           </div>
 
           <div className="field control-field control-field-wide">
-            <label>Название статьи</label>
+            <label>{t('moderator.filters.articleTitle')}</label>
             <input
               type="search"
               value={reportTitleSearch}
               onChange={(e) => setReportTitleSearch(e.target.value)}
-              placeholder="Введите название статьи"
+              placeholder={t('moderator.filters.articlePlaceholder')}
             />
           </div>
 
           <div className="field control-field">
-            <label>Фильтр по чеку</label>
+            <label>{t('moderator.filters.receipt')}</label>
             <select value={receipt} onChange={(e) => changeReceiptFilter(e.target.value)}>
-              <option value="">Все</option>
-              <option value="with">С чеком</option>
-              <option value="without">Без чека</option>
+              <option value="">{t('common.all')}</option>
+              <option value="with">{t('moderator.filters.withReceipt')}</option>
+              <option value="without">{t('moderator.filters.withoutReceipt')}</option>
             </select>
           </div>
 
           <div className="moderator-filter-actions">
-            <button className="btn-primary" type="submit">Найти</button>
-            <button className="btn-secondary" type="button" onClick={resetFilters}>Сбросить</button>
+            <button className="btn-primary" type="submit">{t('moderator.filters.search')}</button>
+            <button className="btn-secondary" type="button" onClick={resetFilters}>{t('moderator.filters.reset')}</button>
           </div>
         </form>
       </section>
@@ -411,8 +405,13 @@ export default function ModeratorDashboard({ onLogout }) {
       <section className="moderator-panel moderator-table-panel">
         <div className="moderator-panel-head">
           <div>
-            <h2>Заявки участников</h2>
-            <p>Страница {pagination.currentPage} из {pagination.lastPage}. Показано {pagination.to} из {pagination.total} заявок.</p>
+            <h2>{t('moderator.table.title')}</h2>
+            <p>{t('moderator.table.pageSummary', {
+              current: pagination.currentPage,
+              last: pagination.lastPage,
+              shown: pagination.to,
+              total: pagination.total,
+            })}</p>
           </div>
         </div>
 
@@ -420,14 +419,14 @@ export default function ModeratorDashboard({ onLogout }) {
           <table>
             <thead>
               <tr>
-                <th>№</th>
-                <th>Дата создания</th>
-                <th>Участник</th>
-                <th>Доклад</th>
-                <th>Оплата</th>
-                <th>Статус</th>
-                <th>Действия</th>
-                <th>Заявка</th>
+                <th>{t('moderator.table.id')}</th>
+                <th>{t('moderator.table.createdAt')}</th>
+                <th>{t('moderator.table.participant')}</th>
+                <th>{t('moderator.table.report')}</th>
+                <th>{t('moderator.table.payment')}</th>
+                <th>{t('moderator.table.status')}</th>
+                <th>{t('moderator.table.actions')}</th>
+                <th>{t('moderator.table.application')}</th>
               </tr>
             </thead>
             <tbody>
@@ -435,8 +434,8 @@ export default function ModeratorDashboard({ onLogout }) {
                 <tr>
                   <td colSpan="8">
                     <div className="empty-state empty-state-table">
-                      <h3>Заявок не найдено</h3>
-                      <p>Измените фильтры или проверьте прием новых заявок.</p>
+                      <h3>{t('moderator.table.emptyTitle')}</h3>
+                      <p>{t('moderator.table.emptyText')}</p>
                     </div>
                   </td>
                 </tr>
@@ -450,7 +449,7 @@ export default function ModeratorDashboard({ onLogout }) {
                 return (
                   <tr key={app.id}>
                     <td>{app.id}</td>
-                    <td>{app.created_at ? new Date(app.created_at).toLocaleString('ru-RU') : '-'}</td>
+                    <td>{formatDateTime(app.created_at, language)}</td>
                     <td>
                       <div className="moderator-person-cell">
                         <strong>{app.full_name}</strong>
@@ -461,21 +460,21 @@ export default function ModeratorDashboard({ onLogout }) {
                     <td>
                       <div className="moderator-report-cell">
                         <strong>{app.report_title}</strong>
-                        <span>{app.direction}</span>
-                        {app.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">Файл доклада</a> : <span>Файл не загружен</span>}
+                        <span>{getDirectionLabel(app.direction, t)}</span>
+                        {app.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">{t('moderator.table.reportFile')}</a> : <span>{t('moderator.table.fileMissing')}</span>}
                       </div>
                     </td>
-                    <td>{receiptPath ? <a href={receiptUrl} target="_blank" rel="noreferrer">Файл чека</a> : 'Нет'}</td>
-                    <td><span className={statusClass[app.status] || statusClass.pending}>{statusLabel[app.status] || app.status}</span></td>
+                    <td>{receiptPath ? <a href={receiptUrl} target="_blank" rel="noreferrer">{t('moderator.table.receiptFile')}</a> : t('moderator.table.noReceipt')}</td>
+                    <td><span className={statusClass[app.status] || statusClass.pending}>{statusText(app.status)}</span></td>
                     <td>
                       <div className="actions">
-                        <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'accepted', app.moderator_comment)}>Принять</button>
-                        <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'revision', app.moderator_comment)}>На доработку</button>
-                        <button className="btn-danger" onClick={() => openStatusModal(app.id, 'rejected', app.moderator_comment)}>Отказать</button>
+                        <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'accepted', app.moderator_comment)}>{t('moderator.actions.accept')}</button>
+                        <button className="btn-secondary" onClick={() => openStatusModal(app.id, 'revision', app.moderator_comment)}>{t('moderator.actions.revision')}</button>
+                        <button className="btn-danger" onClick={() => openStatusModal(app.id, 'rejected', app.moderator_comment)}>{t('moderator.actions.reject')}</button>
                       </div>
                     </td>
                     <td>
-                      <a className="btn-secondary application-open-link" href={`/moderator/applications/${app.id}`} target="_blank" rel="noreferrer">Открыть заявку</a>
+                      <a className="btn-secondary application-open-link" href={`/moderator/applications/${app.id}`} target="_blank" rel="noreferrer">{t('moderator.actions.openApplication')}</a>
                     </td>
                   </tr>
                 );
@@ -485,10 +484,14 @@ export default function ModeratorDashboard({ onLogout }) {
         </div>
 
         <div className="pagination-row moderator-pagination-row">
-          <div className="muted">Показано {pagination.from || 0}-{pagination.to || 0} из {pagination.total} заявок</div>
+          <div className="muted">{t('moderator.pagination.summary', {
+            from: pagination.from || 0,
+            to: pagination.to || 0,
+            total: pagination.total,
+          })}</div>
           <div className="actions">
-            <button className="btn-secondary" type="button" disabled={pagination.currentPage <= 1} onClick={() => goToPage(pagination.currentPage - 1)}>Назад</button>
-            <button className="btn-secondary" type="button" disabled={pagination.currentPage >= pagination.lastPage} onClick={() => goToPage(pagination.currentPage + 1)}>Вперед</button>
+            <button className="btn-secondary" type="button" disabled={pagination.currentPage <= 1} onClick={() => goToPage(pagination.currentPage - 1)}>{t('moderator.pagination.previous')}</button>
+            <button className="btn-secondary" type="button" disabled={pagination.currentPage >= pagination.lastPage} onClick={() => goToPage(pagination.currentPage + 1)}>{t('moderator.pagination.next')}</button>
           </div>
         </div>
       </section>
@@ -501,8 +504,8 @@ export default function ModeratorDashboard({ onLogout }) {
         <section className="moderator-panel application-detail-page">
           <div className="moderator-panel-head">
             <div>
-              <h2>Загрузка заявки</h2>
-              <p>Получаем данные заявки с сервера.</p>
+              <h2>{t('moderator.detail.loadingTitle')}</h2>
+              <p>{t('moderator.detail.loadingText')}</p>
             </div>
           </div>
         </section>
@@ -514,10 +517,10 @@ export default function ModeratorDashboard({ onLogout }) {
         <section className="moderator-panel application-detail-page">
           <div className="moderator-panel-head">
             <div>
-              <h2>Заявка не открылась</h2>
-              <p>{applicationDetailError || 'Заявка не найдена.'}</p>
+              <h2>{t('moderator.detail.errorTitle')}</h2>
+              <p>{applicationDetailError || t('moderator.detail.notFound')}</p>
             </div>
-            <button className="btn-secondary" type="button" onClick={() => openModeratorPage('applications')}>К списку заявок</button>
+            <button className="btn-secondary" type="button" onClick={() => openModeratorPage('applications')}>{t('moderator.detail.backToList')}</button>
           </div>
         </section>
       );
@@ -531,45 +534,45 @@ export default function ModeratorDashboard({ onLogout }) {
         <section className="moderator-panel application-detail-page">
           <div className="application-detail-head">
             <div>
-              <p className="section-kicker">Заявка #{selectedApplication.id}</p>
+              <p className="section-kicker">{t('moderator.detail.applicationNumber', { id: selectedApplication.id })}</p>
               <h2>{selectedApplication.report_title}</h2>
-              <p>{selectedApplication.created_at ? new Date(selectedApplication.created_at).toLocaleString('ru-RU') : '-'}</p>
+              <p>{formatDateTime(selectedApplication.created_at, language)}</p>
             </div>
             <span className={statusClass[selectedApplication.status] || statusClass.pending}>
-              {statusLabel[selectedApplication.status] || selectedApplication.status}
+              {statusText(selectedApplication.status)}
             </span>
           </div>
 
           <div className="application-detail-actions">
-            <button className="btn-secondary" type="button" onClick={() => openModeratorPage('applications')}>К списку заявок</button>
-            {selectedApplication.file_path && <a className="btn-secondary" href={reportFileUrl} target="_blank" rel="noreferrer">Открыть файл доклада</a>}
-            {selectedApplication.payment_receipt_path && <a className="btn-secondary" href={receiptUrl} target="_blank" rel="noreferrer">Открыть чек</a>}
+            <button className="btn-secondary" type="button" onClick={() => openModeratorPage('applications')}>{t('moderator.detail.backToList')}</button>
+            {selectedApplication.file_path && <a className="btn-secondary" href={reportFileUrl} target="_blank" rel="noreferrer">{t('moderator.detail.openReportFile')}</a>}
+            {selectedApplication.payment_receipt_path && <a className="btn-secondary" href={receiptUrl} target="_blank" rel="noreferrer">{t('moderator.detail.openReceipt')}</a>}
           </div>
 
           <div className="detail-grid application-detail-grid">
-            <div><span>Ф.И.О.</span><strong>{selectedApplication.full_name}</strong></div>
-            <div><span>Email</span><strong>{selectedApplication.email}</strong></div>
-            <div><span>Телефон</span><strong>{selectedApplication.phone}</strong></div>
-            <div><span>Место учебы/работы и должность</span><strong>{selectedApplication.organization_position}</strong></div>
-            <div><span>Ученая степень</span><strong>{selectedApplication.academic_degree}</strong></div>
-            <div><span>Кафедра</span><strong>{selectedApplication.department}</strong></div>
-            <div><span>Направление</span><strong>{selectedApplication.direction}</strong></div>
-            <div><span>Форма участия</span><strong>{selectedApplication.participation_form}</strong></div>
-            <div><span>Научный руководитель</span><strong>{selectedApplication.supervisor_full_name}</strong></div>
-            <div><span>Должность руководителя</span><strong>{selectedApplication.supervisor_organization_position}</strong></div>
-            <div><span>Степень руководителя</span><strong>{selectedApplication.supervisor_academic_degree}</strong></div>
-            <div><span>Бронирование гостиницы</span><strong>{selectedApplication.hotel_booking_needed ? 'Да' : 'Нет'}</strong></div>
+            <div><span>{t('moderator.detail.fullName')}</span><strong>{selectedApplication.full_name}</strong></div>
+            <div><span>{t('common.email')}</span><strong>{selectedApplication.email}</strong></div>
+            <div><span>{t('moderator.detail.phone')}</span><strong>{selectedApplication.phone}</strong></div>
+            <div><span>{t('moderator.detail.organizationPosition')}</span><strong>{selectedApplication.organization_position}</strong></div>
+            <div><span>{t('moderator.detail.academicDegree')}</span><strong>{selectedApplication.academic_degree}</strong></div>
+            <div><span>{t('moderator.detail.department')}</span><strong>{selectedApplication.department}</strong></div>
+            <div><span>{t('moderator.detail.direction')}</span><strong>{getDirectionLabel(selectedApplication.direction, t)}</strong></div>
+            <div><span>{t('moderator.detail.participationForm')}</span><strong>{selectedApplication.participation_form}</strong></div>
+            <div><span>{t('moderator.detail.supervisorFullName')}</span><strong>{selectedApplication.supervisor_full_name}</strong></div>
+            <div><span>{t('moderator.detail.supervisorPosition')}</span><strong>{selectedApplication.supervisor_organization_position}</strong></div>
+            <div><span>{t('moderator.detail.supervisorDegree')}</span><strong>{selectedApplication.supervisor_academic_degree}</strong></div>
+            <div><span>{t('moderator.detail.hotelBooking')}</span><strong>{selectedApplication.hotel_booking_needed ? t('common.yes') : t('common.no')}</strong></div>
           </div>
 
           <div className="comment-panel">
-            <span>Комментарий модератора</span>
+            <span>{t('moderator.detail.comment')}</span>
             <p>{selectedApplication.moderator_comment || '-'}</p>
           </div>
 
           <div className="application-status-actions">
-            <button className="btn-secondary" onClick={() => openStatusModal(selectedApplication.id, 'accepted', selectedApplication.moderator_comment)}>Принять</button>
-            <button className="btn-secondary" onClick={() => openStatusModal(selectedApplication.id, 'revision', selectedApplication.moderator_comment)}>На доработку</button>
-            <button className="btn-danger" onClick={() => openStatusModal(selectedApplication.id, 'rejected', selectedApplication.moderator_comment)}>Отказать</button>
+            <button className="btn-secondary" onClick={() => openStatusModal(selectedApplication.id, 'accepted', selectedApplication.moderator_comment)}>{t('moderator.actions.accept')}</button>
+            <button className="btn-secondary" onClick={() => openStatusModal(selectedApplication.id, 'revision', selectedApplication.moderator_comment)}>{t('moderator.actions.revision')}</button>
+            <button className="btn-danger" onClick={() => openStatusModal(selectedApplication.id, 'rejected', selectedApplication.moderator_comment)}>{t('moderator.actions.reject')}</button>
           </div>
         </section>
       </>
@@ -580,33 +583,33 @@ export default function ModeratorDashboard({ onLogout }) {
     <>
       <section className="moderator-hero moderator-export-hero">
         <div>
-          <p>Экспорт</p>
-          <h2>Выгрузка заявок в Excel</h2>
-          <span>Файл формируется сервером и содержит данные заявок конференции для обработки оргкомитетом.</span>
+          <p>{t('moderator.export.kicker')}</p>
+          <h2>{t('moderator.export.title')}</h2>
+          <span>{t('moderator.export.text')}</span>
         </div>
-        <button className="btn-primary btn-primary-light" type="button" onClick={exportExcel}>Скачать Excel</button>
+        <button className="btn-primary btn-primary-light" type="button" onClick={exportExcel}>{t('moderator.export.download')}</button>
       </section>
 
       <div className="moderator-kpi-grid">
-        <div className="moderator-kpi-card"><span>Всего заявок</span><strong>{pagination.total}</strong></div>
-        <div className="moderator-kpi-card"><span>С чеком на странице</span><strong>{receiptCount}</strong></div>
-        <div className="moderator-kpi-card"><span>Принято на странице</span><strong>{currentPageStats.accepted}</strong></div>
-        <div className="moderator-kpi-card"><span>Отклонено на странице</span><strong>{currentPageStats.rejected}</strong></div>
+        <div className="moderator-kpi-card"><span>{t('moderator.export.total')}</span><strong>{pagination.total}</strong></div>
+        <div className="moderator-kpi-card"><span>{t('moderator.export.receiptsOnPage')}</span><strong>{receiptCount}</strong></div>
+        <div className="moderator-kpi-card"><span>{t('moderator.export.acceptedOnPage')}</span><strong>{currentPageStats.accepted}</strong></div>
+        <div className="moderator-kpi-card"><span>{t('moderator.export.rejectedOnPage')}</span><strong>{currentPageStats.rejected}</strong></div>
       </div>
 
       <section className="moderator-panel">
         <div className="moderator-panel-head">
           <div>
-            <h2>Состав выгрузки</h2>
-            <p>В Excel попадают анкеты участников, контакты, направление, статус, комментарий модератора и информация по оплате.</p>
+            <h2>{t('moderator.export.structureTitle')}</h2>
+            <p>{t('moderator.export.structureText')}</p>
           </div>
-          <button className="btn-secondary" type="button" onClick={() => openModeratorPage('applications')}>Открыть заявки</button>
+          <button className="btn-secondary" type="button" onClick={() => openModeratorPage('applications')}>{t('moderator.dashboard.openApplications')}</button>
         </div>
 
         <div className="moderator-export-grid">
-          <div><span>Формат</span><strong>.xlsx</strong></div>
-          <div><span>Источник</span><strong>Заявки конференции</strong></div>
-          <div><span>Доступ</span><strong>Только модератор</strong></div>
+          <div><span>{t('common.format')}</span><strong>.xlsx</strong></div>
+          <div><span>{t('common.source')}</span><strong>{t('moderator.export.applicationsSource')}</strong></div>
+          <div><span>{t('common.access')}</span><strong>{t('moderator.export.moderatorOnly')}</strong></div>
         </div>
       </section>
     </>
@@ -620,30 +623,27 @@ export default function ModeratorDashboard({ onLogout }) {
             <img className="moderator-sidebar-logo" src="/brand/atu-logo-long.png" alt="Almaty Technological University" />
 
             <div className="moderator-profile-card">
-              <strong>Модератор</strong>
-              <span>Админ</span>
+              <strong>{t('moderator.profile.role')}</strong>
+              <span>{t('common.admin')}</span>
             </div>
 
-            <nav className="moderator-nav" aria-label="Панель модератора">
-              <button className={`moderator-nav-link ${activePage === 'dashboard' ? 'is-active' : ''}`} type="button" onClick={() => openModeratorPage('dashboard')}>Панель</button>
-              <button className={`moderator-nav-link ${['applications', 'applicationDetail'].includes(activePage) ? 'is-active' : ''}`} type="button" onClick={() => openModeratorPage('applications')}>Заявки</button>
-              <button className={`moderator-nav-link ${activePage === 'export' ? 'is-active' : ''}`} type="button" onClick={() => openModeratorPage('export')}>Экспорт</button>
+            <nav className="moderator-nav" aria-label={t('moderator.dashboard.heroTitle')}>
+              <button className={`moderator-nav-link ${activePage === 'dashboard' ? 'is-active' : ''}`} type="button" onClick={() => openModeratorPage('dashboard')}>{t('moderator.page.dashboard')}</button>
+              <button className={`moderator-nav-link ${['applications', 'applicationDetail'].includes(activePage) ? 'is-active' : ''}`} type="button" onClick={() => openModeratorPage('applications')}>{t('moderator.page.applications')}</button>
+              <button className={`moderator-nav-link ${activePage === 'export' ? 'is-active' : ''}`} type="button" onClick={() => openModeratorPage('export')}>{t('moderator.page.export')}</button>
             </nav>
           </div>
 
           <div className="moderator-sidebar-footer">
-            <div className="moderator-language" aria-label="Язык интерфейса">
-              <button className="is-active" type="button">RU</button>
-              <button type="button">KZ</button>
-            </div>
-            <button className="moderator-footer-link" type="button">Профиль</button>
-            <button className="moderator-footer-link" type="button" onClick={onLogout}>Выйти</button>
+            <LanguageSwitcher className="moderator-language" />
+            <button className="moderator-footer-link" type="button">{t('common.profile')}</button>
+            <button className="moderator-footer-link" type="button" onClick={onLogout}>{t('common.logout')}</button>
           </div>
         </aside>
 
         <div className="moderator-workspace">
           <header className="moderator-topbar">
-            <h1>{moderatorPageTitle[activePage]}</h1>
+            <h1>{t(moderatorPageTitle[activePage])}</h1>
           </header>
 
           <main className="moderator-main">
@@ -657,26 +657,26 @@ export default function ModeratorDashboard({ onLogout }) {
 
       <Modal
         open={statusModal.open}
-        title={`Изменить статус: ${statusLabel[statusModal.newStatus] || statusModal.newStatus}`}
+        title={t('moderator.modal.statusTitle', { status: statusText(statusModal.newStatus) })}
         onClose={closeStatusModal}
         actions={
           <>
-            <button className="btn-secondary" type="button" onClick={closeStatusModal}>Отмена</button>
-            <button className="btn-primary" type="button" onClick={submitStatusChange}>Сохранить</button>
+            <button className="btn-secondary" type="button" onClick={closeStatusModal}>{t('common.cancel')}</button>
+            <button className="btn-primary" type="button" onClick={submitStatusChange}>{t('common.save')}</button>
           </>
         }
       >
         <div className="field" style={{ margin: 0 }}>
-          <label>Комментарий модератора</label>
-          <textarea rows={4} value={statusModal.comment} onChange={(e) => setStatusModal((prev) => ({ ...prev, comment: e.target.value }))} placeholder="Добавьте комментарий при необходимости" />
+          <label>{t('moderator.modal.comment')}</label>
+          <textarea rows={4} value={statusModal.comment} onChange={(e) => setStatusModal((prev) => ({ ...prev, comment: e.target.value }))} placeholder={t('moderator.modal.commentPlaceholder')} />
         </div>
       </Modal>
 
       <Modal
         open={errorModal.open}
-        title="Ошибка"
+        title={t('common.error')}
         onClose={() => setErrorModal({ open: false, message: '' })}
-        actions={<button className="btn-primary" type="button" onClick={() => setErrorModal({ open: false, message: '' })}>Понятно</button>}
+        actions={<button className="btn-primary" type="button" onClick={() => setErrorModal({ open: false, message: '' })}>{t('common.understood')}</button>}
       >
         <p style={{ margin: 0 }}>{errorModal.message}</p>
       </Modal>

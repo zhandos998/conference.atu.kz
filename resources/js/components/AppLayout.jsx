@@ -1,26 +1,29 @@
 import PropTypes from 'prop-types';
+import { LanguageSwitcher, useI18n } from '../i18n';
 
 export default function AppLayout({ title, subtitle, actions, children, wide, variant }) {
+  const { t } = useI18n();
+
   if (variant === 'auth') {
     return (
       <div className="page page-auth">
         <div className="auth-shell">
           <aside className="auth-brand-panel">
             <img className="auth-logo" src="/brand/atu-logo-long.png" alt="Almaty Technological University" />
-            <div className="auth-kicker">Conference ATU</div>
-            <h1>Научная конференция АТУ</h1>
+            <div className="auth-kicker">{t('auth.brandKicker')}</div>
+            <h1>{t('auth.brandTitle')}</h1>
             <p>
-              Единая система регистрации участников, загрузки докладов и проверки заявок
-              департаментом науки.
+              {t('auth.brandDescription')}
             </p>
-            <div className="auth-highlights" aria-label="Возможности системы">
-              <span>Онлайн-заявки</span>
-              <span>Статусы</span>
-              <span>Материалы</span>
+            <div className="auth-highlights" aria-label={t('auth.featuresLabel')}>
+              <span>{t('auth.featureApplications')}</span>
+              <span>{t('auth.featureStatuses')}</span>
+              <span>{t('auth.featureMaterials')}</span>
             </div>
           </aside>
 
           <main className="auth-card">
+            <LanguageSwitcher className="auth-language" />
             <div className="auth-card-head">
               <img className="auth-card-logo" src="/brand/atu-logo.png" alt="ATU" />
               <div>
@@ -52,7 +55,7 @@ export default function AppLayout({ title, subtitle, actions, children, wide, va
         <main className="card">
           <div className="section-head">
             <div>
-              <p className="section-kicker">Almaty Technological University</p>
+              <p className="section-kicker">{t('auth.university')}</p>
               <h1 className="section-title">{title}</h1>
             </div>
           </div>

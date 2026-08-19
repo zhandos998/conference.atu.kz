@@ -6,8 +6,10 @@ import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import UserDashboard from './pages/user/UserDashboard';
 import ModeratorDashboard from './pages/moderator/ModeratorDashboard';
 import api from './api/client';
+import { useI18n } from './i18n';
 
 export default function App() {
+  const { t } = useI18n();
   const searchParams = new URLSearchParams(window.location.search);
   const isResetMode = searchParams.get('mode') === 'reset-password';
 
@@ -76,7 +78,7 @@ export default function App() {
   };
 
   if (loading) {
-    return <div style={{ padding: 24 }}>Загрузка...</div>;
+    return <div style={{ padding: 24 }}>{t('app.loading')}</div>;
   }
 
   if (!user) {
