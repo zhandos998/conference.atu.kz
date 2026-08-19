@@ -173,4 +173,21 @@ class ApplicationSubmissionTest extends TestCase
             'enabled' => false,
         ]);
     }
+
+    public function test_user_can_read_fee_settings(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'role' => 'user',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/application-fee-settings')
+            ->assertOk()
+            ->assertJsonPath('participant.kz.amount', 5000)
+            ->assertJsonPath('participant.foreign.currency', 'USD')
+            ->assertJsonPath('student.kz.amount', 3000)
+            ->assertJsonPath('student.foreign.amount', 20);
+    }
 }

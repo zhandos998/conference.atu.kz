@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/client';
 import Modal from '../../components/Modal';
+import {
+  defaultFeeSettings,
+  feeCountryGroups,
+  feeParticipantCategories,
+  formatFeeAmount,
+  normalizeFeeSettings,
+  resolveApplicationFee,
+} from '../../fees';
 import { LanguageSwitcher, directionOptions, formatDateTime, getDirectionLabel, useI18n } from '../../i18n';
 
 const statusClass = {
@@ -74,6 +82,10 @@ export default function ModeratorDashboard({ onLogout }) {
   const [statusModal, setStatusModal] = useState({ open: false, applicationId: null, newStatus: 'pending', comment: '' });
   const [submissionEnabled, setSubmissionEnabled] = useState(true);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [feeSettings, setFeeSettings] = useState(defaultFeeSettings);
+  const [feeSettingsDraft, setFeeSettingsDraft] = useState(defaultFeeSettings);
+  const [feeSettingsSaving, setFeeSettingsSaving] = useState(false);
+  const [feeSettingsMessage, setFeeSettingsMessage] = useState('');
   const currentPageStats = items.reduce((acc, application) => {
     acc[application.status] = (acc[application.status] || 0) + 1;
 
@@ -89,6 +101,9 @@ export default function ModeratorDashboard({ onLogout }) {
   }).length;
   const receiptCount = items.filter((application) => application.payment_receipt_path).length;
   const statusText = (nextStatus) => (statusLabel[nextStatus] ? t(statusLabel[nextStatus]) : nextStatus);
+  const applicationFeeText = (application) => formatFeeAmount(resolveApplicationFee(application, feeSettings), language);
+  const participantCategoryText = (value) => t(`fee.category.${feeParticipantCategories.includes(value) ? value : 'participant'}`);
+  const countryGroupText = (value) => t(`fee.country.${feeCountryGroups.includes(value) ? value : 'kz'}`);
 
   const load = async (
     nextPage = pagination.currentPage,
@@ -122,11 +137,20 @@ export default function ModeratorDashboard({ onLogout }) {
     setSubmissionEnabled(Boolean(data?.enabled));
   };
 
+  const loadFeeSettings = async () => {
+    const { data } = await api.get('/moderator/application-fee-settings');
+    const normalizedFees = normalizeFeeSettings(data);
+
+    setFeeSettings(normalizedFees);
+    setFeeSettingsDraft(normalizedFees);
+  };
+
   useEffect(() => {
     const bootstrap = async () => {
       await Promise.all([
         load(1, '', '', '', '', ''),
         loadSubmissionSettings(),
+        loadFeeSettings(),
       ]);
     };
 
@@ -273,6 +297,42 @@ export default function ModeratorDashboard({ onLogout }) {
     }
   };
 
+  const updateFeeAmount = (category, countryGroup, amount) => {
+    setFeeSettingsDraft((current) => {
+      const normalizedCurrent = normalizeFeeSettings(current);
+
+      return {
+        ...normalizedCurrent,
+        [category]: {
+          ...normalizedCurrent[category],
+          [countryGroup]: {
+            ...normalizedCurrent[category][countryGroup],
+            amount,
+          },
+        },
+      };
+    });
+  };
+
+  const submitFeeSettings = async (e) => {
+    e.preventDefault();
+    setFeeSettingsSaving(true);
+    setFeeSettingsMessage('');
+
+    try {
+      const { data } = await api.patch('/moderator/application-fee-settings', normalizeFeeSettings(feeSettingsDraft));
+      const normalizedFees = normalizeFeeSettings(data);
+
+      setFeeSettings(normalizedFees);
+      setFeeSettingsDraft(normalizedFees);
+      setFeeSettingsMessage('moderator.fees.saved');
+    } catch (err) {
+      setErrorModal({ open: true, message: err.response?.data?.message || t('moderator.fees.error') });
+    } finally {
+      setFeeSettingsSaving(false);
+    }
+  };
+
   const renderSubmissionCard = () => (
     <section className="moderator-action-card">
       <div>
@@ -287,6 +347,50 @@ export default function ModeratorDashboard({ onLogout }) {
           {settingsSaving ? t('moderator.submission.saving') : (submissionEnabled ? t('moderator.submission.disable') : t('moderator.submission.enable'))}
         </button>
       </div>
+    </section>
+  );
+
+  const renderFeeSettingsCard = () => (
+    <section className="moderator-panel moderator-fees-panel">
+      <div className="moderator-panel-head">
+        <div>
+          <h2>{t('moderator.fees.title')}</h2>
+          <p>{t('moderator.fees.text')}</p>
+        </div>
+      </div>
+
+      <form className="moderator-fees-form" onSubmit={submitFeeSettings}>
+        <div className="moderator-fees-grid">
+          {feeParticipantCategories.map((category) => (
+            feeCountryGroups.map((countryGroup) => {
+              const fee = feeSettingsDraft[category][countryGroup];
+
+              return (
+                <div className="field" key={`${category}-${countryGroup}`}>
+                  <label>{participantCategoryText(category)} / {countryGroupText(countryGroup)}</label>
+                  <div className="fee-input-row">
+                    <input
+                      min="0"
+                      step="1"
+                      type="number"
+                      value={fee.amount}
+                      onChange={(e) => updateFeeAmount(category, countryGroup, e.target.value)}
+                    />
+                    <span>{t(fee.currency === 'USD' ? 'fee.currency.usd' : 'fee.currency.kzt')}</span>
+                  </div>
+                </div>
+              );
+            })
+          ))}
+        </div>
+
+        <div className="inline-actions moderator-fees-actions">
+          <button className="btn-primary" type="submit" disabled={feeSettingsSaving}>
+            {feeSettingsSaving ? t('moderator.fees.saving') : t('moderator.fees.save')}
+          </button>
+          {feeSettingsMessage && <span className="moderator-fees-message">{t(feeSettingsMessage)}</span>}
+        </div>
+      </form>
     </section>
   );
 
@@ -330,6 +434,7 @@ export default function ModeratorDashboard({ onLogout }) {
       </section>
 
       {renderSubmissionCard()}
+      {renderFeeSettingsCard()}
     </>
   );
 
@@ -464,7 +569,12 @@ export default function ModeratorDashboard({ onLogout }) {
                         {app.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">{t('moderator.table.reportFile')}</a> : <span>{t('moderator.table.fileMissing')}</span>}
                       </div>
                     </td>
-                    <td>{receiptPath ? <a href={receiptUrl} target="_blank" rel="noreferrer">{t('moderator.table.receiptFile')}</a> : t('moderator.table.noReceipt')}</td>
+                    <td>
+                      <div className="moderator-payment-cell">
+                        <strong>{applicationFeeText(app)}</strong>
+                        {receiptPath ? <a href={receiptUrl} target="_blank" rel="noreferrer">{t('moderator.table.receiptFile')}</a> : <span>{t('moderator.table.noReceipt')}</span>}
+                      </div>
+                    </td>
                     <td><span className={statusClass[app.status] || statusClass.pending}>{statusText(app.status)}</span></td>
                     <td>
                       <div className="actions">
@@ -555,6 +665,9 @@ export default function ModeratorDashboard({ onLogout }) {
             <div><span>{t('moderator.detail.phone')}</span><strong>{selectedApplication.phone}</strong></div>
             <div><span>{t('moderator.detail.organizationPosition')}</span><strong>{selectedApplication.organization_position}</strong></div>
             <div><span>{t('moderator.detail.academicDegree')}</span><strong>{selectedApplication.academic_degree}</strong></div>
+            <div><span>{t('user.form.participantCategory')}</span><strong>{participantCategoryText(selectedApplication.participant_category)}</strong></div>
+            <div><span>{t('user.form.countryGroup')}</span><strong>{countryGroupText(selectedApplication.country_group)}</strong></div>
+            <div><span>{t('fee.amountLabel')}</span><strong>{applicationFeeText(selectedApplication)}</strong></div>
             <div><span>{t('moderator.detail.department')}</span><strong>{selectedApplication.department}</strong></div>
             <div><span>{t('moderator.detail.direction')}</span><strong>{getDirectionLabel(selectedApplication.direction, t)}</strong></div>
             <div><span>{t('moderator.detail.participationForm')}</span><strong>{selectedApplication.participation_form}</strong></div>

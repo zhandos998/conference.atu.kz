@@ -38,6 +38,35 @@ class ModeratorApplicationController extends Controller
         ]);
     }
 
+    public function feeSettings()
+    {
+        $this->authorize('moderate', Application::class);
+
+        return response()->json(SystemSetting::getConferenceFees());
+    }
+
+    public function updateFeeSettings(Request $request)
+    {
+        $this->authorize('moderate', Application::class);
+
+        $validated = $request->validate([
+            'participant' => ['required', 'array'],
+            'participant.kz' => ['required', 'array'],
+            'participant.kz.amount' => ['required', 'numeric', 'min:0', 'max:100000000'],
+            'participant.foreign' => ['required', 'array'],
+            'participant.foreign.amount' => ['required', 'numeric', 'min:0', 'max:100000000'],
+            'student' => ['required', 'array'],
+            'student.kz' => ['required', 'array'],
+            'student.kz.amount' => ['required', 'numeric', 'min:0', 'max:100000000'],
+            'student.foreign' => ['required', 'array'],
+            'student.foreign.amount' => ['required', 'numeric', 'min:0', 'max:100000000'],
+        ]);
+
+        SystemSetting::setConferenceFees($validated);
+
+        return response()->json(SystemSetting::getConferenceFees());
+    }
+
     public function index(Request $request)
     {
         $this->authorize('moderate', Application::class);
@@ -94,6 +123,15 @@ class ModeratorApplicationController extends Controller
             $payload['moderator_comment'] = $this->normalizeUtf8($payload['moderator_comment']);
         }
 
+        if ($payload['status'] === Application::STATUS_ACCEPTED) {
+            $fee = SystemSetting::conferenceFeeFor($application->participant_category, $application->country_group);
+            $payload['payment_fee_amount'] = $fee['amount'];
+            $payload['payment_fee_currency'] = $fee['currency'];
+        } else {
+            $payload['payment_fee_amount'] = null;
+            $payload['payment_fee_currency'] = null;
+        }
+
         $application->update($payload);
 
         ApplicationStatusLog::create([
@@ -107,6 +145,7 @@ class ModeratorApplicationController extends Controller
         $application->user->notify(new ApplicationStatusChangedNotification(
             $application->status,
             $application->moderator_comment,
+            $application->fresh(),
         ));
 
         return response()->json($application->fresh('user'));

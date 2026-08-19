@@ -1,12 +1,22 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/client';
 import Modal from '../../components/Modal';
+import {
+  defaultFeeSettings,
+  feeCountryGroups,
+  feeParticipantCategories,
+  formatFeeAmount,
+  normalizeFeeSettings,
+  resolveApplicationFee,
+} from '../../fees';
 import { LanguageSwitcher, directionOptions, formatDateTime, getDirectionLabel, useI18n } from '../../i18n';
 
 const initialForm = {
   full_name: '',
   organization_position: '',
   academic_degree: '',
+  participant_category: 'participant',
+  country_group: 'kz',
   phone: '',
   email: '',
   supervisor_full_name: '',
@@ -38,6 +48,8 @@ const toForm = (application) => ({
   full_name: application?.full_name || '',
   organization_position: application?.organization_position || '',
   academic_degree: application?.academic_degree || '',
+  participant_category: application?.participant_category || 'participant',
+  country_group: application?.country_group || 'kz',
   phone: application?.phone || '',
   email: application?.email || '',
   supervisor_full_name: application?.supervisor_full_name || '',
@@ -76,6 +88,7 @@ export default function UserDashboard({ user, onLogout }) {
   const [paymentReceipt, setPaymentReceipt] = useState(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [feeSettings, setFeeSettings] = useState(defaultFeeSettings);
   const [submissionEnabled, setSubmissionEnabled] = useState(true);
   const [noticeModal, setNoticeModal] = useState({ open: false, title: '', message: '' });
 
@@ -93,6 +106,9 @@ export default function UserDashboard({ user, onLogout }) {
     application?.status === 'accepted' && !application?.payment_receipt_path
   );
   const paymentApplications = applications.filter(needsPayment);
+  const applicationFeeText = (application) => formatFeeAmount(resolveApplicationFee(application, feeSettings), language);
+  const participantCategoryText = (value) => t(`fee.category.${feeParticipantCategories.includes(value) ? value : 'participant'}`);
+  const countryGroupText = (value) => t(`fee.country.${feeCountryGroups.includes(value) ? value : 'kz'}`);
 
   const loadApplications = async () => {
     const { data } = await api.get('/applications');
@@ -104,11 +120,17 @@ export default function UserDashboard({ user, onLogout }) {
     setSubmissionEnabled(Boolean(data?.enabled));
   };
 
+  const loadFeeSettings = async () => {
+    const { data } = await api.get('/application-fee-settings');
+    setFeeSettings(normalizeFeeSettings(data));
+  };
+
   useEffect(() => {
     const bootstrap = async () => {
       await Promise.all([
         loadApplications(),
         loadSubmissionSettings(),
+        loadFeeSettings(),
       ]);
 
       const applicationId = getUserApplicationIdFromLocation();
@@ -140,6 +162,7 @@ export default function UserDashboard({ user, onLogout }) {
     await Promise.all([
       loadApplications(),
       loadSubmissionSettings(),
+      loadFeeSettings(),
     ]);
     setSelectedApplication(null);
     setView('list');
@@ -294,6 +317,22 @@ export default function UserDashboard({ user, onLogout }) {
           <input required value={form.academic_degree} onChange={(e) => setForm({ ...form, academic_degree: e.target.value })} />
         </div>
         <div className="field">
+          <label>{t('user.form.participantCategory')}</label>
+          <select required value={form.participant_category} onChange={(e) => setForm({ ...form, participant_category: e.target.value })}>
+            {feeParticipantCategories.map((category) => (
+              <option key={category} value={category}>{participantCategoryText(category)}</option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label>{t('user.form.countryGroup')}</label>
+          <select required value={form.country_group} onChange={(e) => setForm({ ...form, country_group: e.target.value })}>
+            {feeCountryGroups.map((countryGroup) => (
+              <option key={countryGroup} value={countryGroup}>{countryGroupText(countryGroup)}</option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
           <label>{t('user.form.phone')}</label>
           <input required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
         </div>
@@ -371,6 +410,7 @@ export default function UserDashboard({ user, onLogout }) {
           <div>
             <h3>{t('user.payment.title')}</h3>
             <p>{t('user.payment.message')}</p>
+            <p className="payment-amount">{t('user.payment.amount', { amount: applicationFeeText(paymentApplications[0]) })}</p>
             <p>{t('user.payment.uploadInstruction')}</p>
           </div>
           <button
@@ -398,7 +438,7 @@ export default function UserDashboard({ user, onLogout }) {
                   <span className={statusClass[app.status] || statusClass.pending}>{statusText(app.status)}</span>
                 </div>
                 <p className="app-meta">{formatDateTime(app.created_at, language)}</p>
-                {needsPayment(app) && <p className="payment-row-note">{t('user.payment.rowNotice')}</p>}
+                {needsPayment(app) && <p className="payment-row-note">{t('user.payment.rowNotice', { amount: applicationFeeText(app) })}</p>}
               </div>
               <div className="user-row-actions">
                 <a className="btn-secondary" href={`/applications/${app.id}`} target="_blank" rel="noreferrer">{t('user.list.openApplication')}</a>
@@ -462,6 +502,9 @@ export default function UserDashboard({ user, onLogout }) {
             <div><span>{t('user.form.fullName')}</span><strong>{selectedApplication.full_name}</strong></div>
             <div><span>{t('user.form.organizationPosition')}</span><strong>{selectedApplication.organization_position}</strong></div>
             <div><span>{t('user.form.academicDegree')}</span><strong>{selectedApplication.academic_degree}</strong></div>
+            <div><span>{t('user.form.participantCategory')}</span><strong>{participantCategoryText(selectedApplication.participant_category)}</strong></div>
+            <div><span>{t('user.form.countryGroup')}</span><strong>{countryGroupText(selectedApplication.country_group)}</strong></div>
+            <div><span>{t('fee.amountLabel')}</span><strong>{applicationFeeText(selectedApplication)}</strong></div>
             <div><span>{t('user.form.phone')}</span><strong>{selectedApplication.phone}</strong></div>
             <div><span>{t('common.email')}</span><strong>{selectedApplication.email}</strong></div>
             <div><span>{t('user.form.supervisorFullName')}</span><strong>{selectedApplication.supervisor_full_name}</strong></div>
@@ -488,6 +531,7 @@ export default function UserDashboard({ user, onLogout }) {
               {needsPayment(selectedApplication) && (
                 <>
                   <p>{t('user.payment.message')}</p>
+                  <p className="payment-amount">{t('user.payment.amount', { amount: applicationFeeText(selectedApplication) })}</p>
                   <p>{t('user.payment.uploadInstruction')}</p>
                 </>
               )}

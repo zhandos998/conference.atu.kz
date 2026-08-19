@@ -21,6 +21,11 @@ class ApplicationController extends Controller
         ]);
     }
 
+    public function feeSettings()
+    {
+        return response()->json(SystemSetting::getConferenceFees());
+    }
+
     public function index(Request $request)
     {
         return response()->json(
@@ -41,8 +46,12 @@ class ApplicationController extends Controller
             $filePath = $request->file('file')->store('applications', 'public');
         }
 
+        $data = $request->validated();
+        $data['participant_category'] = $data['participant_category'] ?? Application::PARTICIPANT_CATEGORY_PARTICIPANT;
+        $data['country_group'] = $data['country_group'] ?? Application::COUNTRY_GROUP_KZ;
+
         $application = $request->user()->applications()->create([
-            ...$request->validated(),
+            ...$data,
             'file_path' => $filePath,
             'status' => Application::STATUS_PENDING,
         ]);
@@ -70,6 +79,8 @@ class ApplicationController extends Controller
         }
 
         $data = $request->validated();
+        $data['participant_category'] = $data['participant_category'] ?? Application::PARTICIPANT_CATEGORY_PARTICIPANT;
+        $data['country_group'] = $data['country_group'] ?? Application::COUNTRY_GROUP_KZ;
 
         if ($request->hasFile('file')) {
             if ($application->file_path) {
@@ -85,6 +96,8 @@ class ApplicationController extends Controller
             ...$data,
             'status' => Application::STATUS_PENDING,
             'moderator_comment' => null,
+            'payment_fee_amount' => null,
+            'payment_fee_currency' => null,
         ]);
 
         $request->user()->notify(new ApplicationSubmittedNotification($application, true));

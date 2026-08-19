@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
 
 :root {
   --atu-blue: #274f93;
@@ -29,9 +29,14 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background:
-    linear-gradient(180deg, #eaf1ff 0, #f6f8fc 280px, #eef2f8 100%);
+  font-family:
+    "Manrope",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  background: linear-gradient(180deg, #eaf1ff 0, #f6f8fc 280px, #eef2f8 100%);
   color: var(--text);
   overflow-x: hidden;
   overflow-y: auto;
@@ -106,7 +111,10 @@ textarea {
   background: #fff;
   color: var(--text);
   outline: none;
-  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease;
 }
 
 textarea {
@@ -255,8 +263,8 @@ textarea:focus {
   bottom: -62px;
   width: 370px;
   aspect-ratio: 657 / 252;
-  background: url('/brand/atu-logo.png') center / contain no-repeat;
-  content: '';
+  background: url("/brand/atu-logo.png") center / contain no-repeat;
+  content: "";
   opacity: 0.11;
 }
 
@@ -420,7 +428,11 @@ textarea:focus {
   gap: 8px;
   white-space: normal;
   text-align: center;
-  transition: background 140ms ease, color 140ms ease, border-color 140ms ease, transform 140ms ease;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease,
+    transform 140ms ease;
 }
 
 .btn-primary {
@@ -671,7 +683,7 @@ textarea:focus {
   left: 0;
   height: 2px;
   background: var(--atu-blue);
-  content: '';
+  content: "";
 }
 
 .user-topbar-actions {
@@ -738,7 +750,7 @@ textarea:focus {
   flex: 0 0 auto;
   border-right: 2px solid currentColor;
   border-bottom: 2px solid currentColor;
-  content: '';
+  content: "";
   transform: rotate(45deg) translateY(-2px);
 }
 
@@ -949,7 +961,7 @@ textarea:focus {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  margin: 0 24px 14px;
+  margin: 14px 24px;
   border: 1px solid #f1d58a;
   border-left: 4px solid var(--atu-yellow);
   border-radius: 8px;
@@ -979,6 +991,13 @@ textarea:focus {
   color: #5f4a10;
   font-size: 14px;
   line-height: 1.5;
+}
+
+.payment-notice-panel .payment-amount,
+.receipt-payment-notice .payment-amount {
+  color: var(--atu-blue-strong);
+  font-size: 16px;
+  font-weight: 900;
 }
 
 .payment-row-note {
@@ -1353,6 +1372,50 @@ textarea:focus {
   gap: 8px;
 }
 
+.moderator-fees-form {
+  padding: 20px 24px 24px;
+}
+
+.moderator-fees-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.fee-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fee-input-row input {
+  min-width: 0;
+}
+
+.fee-input-row span {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--atu-blue-soft);
+  color: var(--atu-blue-strong);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.moderator-fees-actions {
+  margin-top: 16px;
+}
+
+.moderator-fees-message {
+  color: var(--accepted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .moderator-filter-panel {
   padding: 20px 24px 24px;
 }
@@ -1477,28 +1540,32 @@ textarea:focus {
 }
 
 .moderator-person-cell,
-.moderator-report-cell {
+.moderator-report-cell,
+.moderator-payment-cell {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
 .moderator-person-cell strong,
-.moderator-report-cell strong {
+.moderator-report-cell strong,
+.moderator-payment-cell strong {
   color: var(--atu-blue-strong);
   font-size: 13px;
   line-height: 1.35;
 }
 
 .moderator-person-cell span,
-.moderator-report-cell span {
+.moderator-report-cell span,
+.moderator-payment-cell span {
   color: #4b5563;
   font-size: 12px;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
-.moderator-report-cell a {
+.moderator-report-cell a,
+.moderator-payment-cell a {
   width: fit-content;
   font-size: 12px;
 }
@@ -2070,7 +2137,8 @@ td iframe {
   }
 
   .moderator-hero-stats,
-  .moderator-kpi-grid {
+  .moderator-kpi-grid,
+  .moderator-fees-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2224,6 +2292,7 @@ td iframe {
   .moderator-action-card,
   .moderator-panel-head,
   .moderator-filter-panel,
+  .moderator-fees-form,
   .moderator-pagination-row,
   .application-detail-head,
   .application-detail-actions,
@@ -2237,7 +2306,8 @@ td iframe {
 
   .moderator-hero-stats,
   .moderator-kpi-grid,
-  .moderator-export-grid {
+  .moderator-export-grid,
+  .moderator-fees-grid {
     grid-template-columns: 1fr;
   }
 

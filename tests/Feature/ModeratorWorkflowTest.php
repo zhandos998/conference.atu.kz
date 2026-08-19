@@ -67,6 +67,9 @@ class ModeratorWorkflowTest extends TestCase
             'moderator_comment' => 'Р вЂќР С•Р С”Р В»Р В°Р Т‘ Р С—РЎР‚Р С‘Р Р…РЎРЏРЎвЂљ.',
         ]);
 
+        $this->assertSame('5000.00', $application->fresh()->payment_fee_amount);
+        $this->assertSame('KZT', $application->fresh()->payment_fee_currency);
+
         $this->assertDatabaseHas('application_status_logs', [
             'application_id' => $application->id,
             'moderator_id' => $moderator->id,
@@ -81,6 +84,7 @@ class ModeratorWorkflowTest extends TestCase
                 && $mail->greeting === 'Уважаемый(ая) автор!'
                 && in_array('Ваша статья успешно принята к публикации.', $mail->introLines, true)
                 && in_array('Просим произвести оплату организационного взноса в соответствии с требованиями конференции.', $mail->introLines, true)
+                && in_array('Сумма к оплате: 5000 тг.', $mail->introLines, true)
                 && in_array('После оплаты необходимо загрузить подтверждение платежа на conference@atu.edu.kz', $mail->introLines, true)
                 && $mail->salutation === 'Благодарим за участие!'
                 && $mail->actionText === null
@@ -163,6 +167,48 @@ class ModeratorWorkflowTest extends TestCase
             ->assertJson([
                 'enabled' => false,
             ]);
+    }
+
+    public function test_moderator_can_update_fee_settings(): void
+    {
+        $moderator = User::factory()->create([
+            'role' => 'moderator',
+            'email_verified_at' => now(),
+        ]);
+
+        Sanctum::actingAs($moderator);
+
+        $this->getJson('/api/moderator/application-fee-settings')
+            ->assertOk()
+            ->assertJsonPath('participant.kz.amount', 5000)
+            ->assertJsonPath('participant.foreign.amount', 30)
+            ->assertJsonPath('student.kz.amount', 3000)
+            ->assertJsonPath('student.foreign.amount', 20);
+
+        $response = $this->patchJson('/api/moderator/application-fee-settings', [
+            'participant' => [
+                'kz' => ['amount' => 7000],
+                'foreign' => ['amount' => 40],
+            ],
+            'student' => [
+                'kz' => ['amount' => 4000],
+                'foreign' => ['amount' => 25],
+            ],
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('participant.kz.amount', 7000)
+            ->assertJsonPath('participant.foreign.amount', 40)
+            ->assertJsonPath('student.kz.amount', 4000)
+            ->assertJsonPath('student.foreign.amount', 25);
+
+        $fees = SystemSetting::getConferenceFees();
+
+        $this->assertSame(7000.0, $fees['participant']['kz']['amount']);
+        $this->assertSame('KZT', $fees['participant']['kz']['currency']);
+        $this->assertSame(25.0, $fees['student']['foreign']['amount']);
+        $this->assertSame('USD', $fees['student']['foreign']['currency']);
     }
 
     public function test_moderator_can_filter_applications_by_receipt_presence(): void

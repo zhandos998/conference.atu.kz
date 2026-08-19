@@ -6,6 +6,7 @@ use App\Exports\ApplicationsExport;
 use App\Http\Controllers\Controller;
 use App\Models\Application;
 use App\Models\ApplicationStatusLog;
+use App\Models\SystemSetting;
 use App\Notifications\ApplicationStatusChangedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -37,6 +38,16 @@ class DashboardController extends Controller
         ]);
 
         $oldStatus = $application->status;
+
+        if ($data['status'] === Application::STATUS_ACCEPTED) {
+            $fee = SystemSetting::conferenceFeeFor($application->participant_category, $application->country_group);
+            $data['payment_fee_amount'] = $fee['amount'];
+            $data['payment_fee_currency'] = $fee['currency'];
+        } else {
+            $data['payment_fee_amount'] = null;
+            $data['payment_fee_currency'] = null;
+        }
+
         $application->update($data);
 
         ApplicationStatusLog::create([
@@ -50,6 +61,7 @@ class DashboardController extends Controller
         $application->user->notify(new ApplicationStatusChangedNotification(
             $application->status,
             $application->moderator_comment,
+            $application->fresh(),
         ));
 
         return back()->with('success', 'Анкета успешно обновлена.');

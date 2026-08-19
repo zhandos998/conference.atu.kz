@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Application;
+use App\Models\SystemSetting;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -14,6 +15,7 @@ class ApplicationStatusChangedNotification extends Notification
     public function __construct(
         private readonly string $status,
         private readonly ?string $comment,
+        private readonly ?Application $application = null,
     ) {}
 
     public function via(object $notifiable): array
@@ -24,11 +26,19 @@ class ApplicationStatusChangedNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         if ($this->status === Application::STATUS_ACCEPTED) {
-            return (new MailMessage)
+            $mail = (new MailMessage)
                 ->subject('Статья принята к публикации')
                 ->greeting('Уважаемый(ая) автор!')
                 ->line('Ваша статья успешно принята к публикации.')
-                ->line('Просим произвести оплату организационного взноса в соответствии с требованиями конференции.')
+                ->line('Просим произвести оплату организационного взноса в соответствии с требованиями конференции.');
+
+            if ($this->application) {
+                $fee = SystemSetting::conferenceFeeForApplication($this->application);
+
+                $mail->line('Сумма к оплате: ' . SystemSetting::formatConferenceFee($fee) . '.');
+            }
+
+            return $mail
                 ->line('После оплаты необходимо загрузить подтверждение платежа на conference@atu.edu.kz')
                 ->salutation('Благодарим за участие!');
         }

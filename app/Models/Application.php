@@ -15,12 +15,18 @@ class Application extends Model
     public const STATUS_ACCEPTED = 'accepted';
     public const STATUS_REVISION = 'revision';
     public const STATUS_REJECTED = 'rejected';
+    public const PARTICIPANT_CATEGORY_PARTICIPANT = 'participant';
+    public const PARTICIPANT_CATEGORY_STUDENT = 'student';
+    public const COUNTRY_GROUP_KZ = 'kz';
+    public const COUNTRY_GROUP_FOREIGN = 'foreign';
 
     protected $fillable = [
         'user_id',
         'full_name',
         'organization_position',
         'academic_degree',
+        'participant_category',
+        'country_group',
         'phone',
         'email',
         'supervisor_full_name',
@@ -33,12 +39,15 @@ class Application extends Model
         'hotel_booking_needed',
         'file_path',
         'payment_receipt_path',
+        'payment_fee_amount',
+        'payment_fee_currency',
         'status',
         'moderator_comment',
     ];
 
     protected $casts = [
         'hotel_booking_needed' => 'boolean',
+        'payment_fee_amount' => 'decimal:2',
     ];
 
     public function user(): BelongsTo
