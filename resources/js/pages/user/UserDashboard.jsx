@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/client';
-import AppLayout from '../../components/AppLayout';
 import Modal from '../../components/Modal';
 
 const initialForm = {
@@ -76,7 +75,7 @@ const viewTitle = {
   edit: 'Редактирование заявки',
 };
 
-export default function UserDashboard({ onLogout }) {
+export default function UserDashboard({ user, onLogout }) {
   const [view, setView] = useState('list');
   const [applications, setApplications] = useState([]);
   const [selectedApplication, setSelectedApplication] = useState(null);
@@ -95,6 +94,7 @@ export default function UserDashboard({ onLogout }) {
 
     return acc;
   }, { total: 0, pending: 0, accepted: 0, revision: 0, rejected: 0 });
+  const userName = user?.name || user?.email || 'Участник';
 
   const loadApplications = async () => {
     const { data } = await api.get('/applications');
@@ -351,16 +351,16 @@ export default function UserDashboard({ onLogout }) {
   );
 
   const renderList = () => (
-    <>
-      {!submissionEnabled && <p className="error-text">Прием заявок сейчас отключен менеджером.</p>}
-
-      <div className="list-toolbar">
+    <section className="user-panel">
+      <div className="user-panel-head">
         <div>
           <h2>{viewTitle.list}</h2>
-          <p className="muted">Всего заявок: {applicationStats.total}</p>
+          <p>Всего заявок: {applicationStats.total}</p>
         </div>
         <button className="btn-primary" type="button" onClick={goToCreate} disabled={!submissionEnabled}>Добавить заявку</button>
       </div>
+
+      {!submissionEnabled && <p className="error-text">Прием заявок сейчас отключен менеджером.</p>}
 
       {applications.length === 0 ? (
         <div className="empty-state">
@@ -368,36 +368,62 @@ export default function UserDashboard({ onLogout }) {
           <p>После отправки доклада здесь появятся статус, дата создания и ссылка на карточку заявки.</p>
         </div>
       ) : (
-        <div className="list">
+        <div className="user-application-list">
           {applications.map((app) => (
-            <div key={app.id} className="app-item">
-              <div className="app-item-head">
-                <div>
+            <div key={app.id} className="user-application-row">
+              <div>
+                <div className="user-application-row-head">
                   <h3 className="app-title">{app.report_title}</h3>
-                  <p className="app-meta">{new Date(app.created_at).toLocaleString('ru-RU')}</p>
+                  <span className={statusClass[app.status] || statusClass.pending}>{statusLabel[app.status] || app.status}</span>
                 </div>
-                <span className={statusClass[app.status] || statusClass.pending}>{statusLabel[app.status] || app.status}</span>
+                <p className="app-meta">{new Date(app.created_at).toLocaleString('ru-RU')}</p>
               </div>
-              <div className="inline-actions">
+              <div className="user-row-actions">
                 <a className="btn-secondary" href={`/applications/${app.id}`} target="_blank" rel="noreferrer">Открыть заявку</a>
               </div>
             </div>
           ))}
         </div>
       )}
-    </>
+    </section>
+  );
+
+  const renderFormPanel = (onSubmit, submitLabel) => (
+    <section className="user-panel user-form-panel">
+      <div className="user-panel-head">
+        <div>
+          <h2>{viewTitle[view]}</h2>
+          <p>{view === 'edit' ? 'Исправьте заявку и отправьте ее повторно.' : 'Заполните данные участника и доклада.'}</p>
+        </div>
+      </div>
+      {renderApplicationForm(onSubmit, submitLabel)}
+    </section>
   );
 
   const renderDetail = () => {
     if (!selectedApplication) {
-      return <p>Заявка не выбрана.</p>;
+      return (
+        <section className="user-panel">
+          <div className="empty-state">
+            <h3>Заявка не выбрана</h3>
+          </div>
+        </section>
+      );
     }
 
     const reportFileUrl = selectedApplication.file_path ? toReportFileUrl(selectedApplication.file_path) : '';
 
     return (
-      <>
-        <div className="inline-actions">
+      <section className="user-panel user-detail-section">
+        <div className="user-panel-head">
+          <div>
+            <h2>{viewTitle.detail}</h2>
+            <p>Заявка #{selectedApplication.id}</p>
+          </div>
+          <span className={statusClass[selectedApplication.status] || statusClass.pending}>{statusLabel[selectedApplication.status] || selectedApplication.status}</span>
+        </div>
+
+        <div className="inline-actions user-detail-actions">
           <button className="btn-secondary" type="button" onClick={goToList}>К списку заявок</button>
           <button className="btn-primary" type="button" onClick={goToEdit} disabled={!submissionEnabled}>Изменить заявку</button>
         </div>
@@ -405,10 +431,9 @@ export default function UserDashboard({ onLogout }) {
         <div className="detail-panel">
           <div className="detail-head">
             <div>
-              <p className="section-kicker">Заявка #{selectedApplication.id}</p>
+              <p className="section-kicker">Доклад</p>
               <h2>{selectedApplication.report_title}</h2>
             </div>
-            <span className={statusClass[selectedApplication.status] || statusClass.pending}>{statusLabel[selectedApplication.status] || selectedApplication.status}</span>
           </div>
 
           <div className="detail-grid">
@@ -445,41 +470,75 @@ export default function UserDashboard({ onLogout }) {
             </div>
           </form>
         )}
-      </>
+      </section>
     );
   };
 
   return (
     <>
-      <AppLayout
-        title="Кабинет участника"
-        subtitle="Личный раздел участника конференции"
-        actions={<button className="btn-danger" onClick={onLogout}>Выйти</button>}
-      >
-        <div className="info-panel">
-          <div>
-            <p className="section-kicker">Департамент науки</p>
-            <h2>Контакты оргкомитета</h2>
-            <p>050012, г. Алматы, ул. Толе би, 100, Алматинский технологический университет, каб. 617, 615, 1106, вн. т. 243, 139.</p>
+      <div className="user-layout">
+        <header className="user-topbar">
+          <div className="user-topbar-inner">
+            <div className="user-brand-nav">
+              <img className="user-logo" src="/brand/atu-logo-long.png" alt="Almaty Technological University" />
+              <nav className="user-nav" aria-label="Кабинет участника">
+                <button className={`user-nav-link ${['list', 'detail'].includes(view) ? 'is-active' : ''}`} type="button" onClick={goToList}>Панель</button>
+                <button className={`user-nav-link ${['create', 'edit'].includes(view) ? 'is-active' : ''}`} type="button" onClick={goToCreate} disabled={!submissionEnabled}>Заявки</button>
+              </nav>
+            </div>
+
+            <div className="user-topbar-actions">
+              <div className="user-language" aria-label="Язык интерфейса">
+                <button className="is-active" type="button">RU</button>
+                <button type="button">KZ</button>
+              </div>
+              <details className="user-account-menu">
+                <summary>{userName}</summary>
+                <div>
+                  <button type="button" onClick={onLogout}>Выйти</button>
+                </div>
+              </details>
+            </div>
           </div>
-          <a className="contact-link" href="mailto:conference2@atu.edu.kz">conference2@atu.edu.kz</a>
+        </header>
+
+        <div className="user-page-title">
+          <div className="user-container">
+            <h1>{view === 'list' ? 'Панель' : viewTitle[view]}</h1>
+          </div>
         </div>
 
-        <div className="summary-grid">
-          <div className="summary-item"><span>Всего</span><strong>{applicationStats.total}</strong></div>
-          <div className="summary-item"><span>На рассмотрении</span><strong>{applicationStats.pending}</strong></div>
-          <div className="summary-item"><span>Принято</span><strong>{applicationStats.accepted}</strong></div>
-          <div className="summary-item"><span>На доработку</span><strong>{applicationStats.revision}</strong></div>
-        </div>
+        <main className="user-main">
+          <div className="user-container user-content">
+            <section className="user-hero">
+              <div>
+                <p>Conference ATU</p>
+                <h2>Кабинет участника конференции</h2>
+                <span>Заявки, статусы, файлы докладов и чеки в едином рабочем интерфейсе.</span>
+              </div>
+              <div className="user-hero-stats">
+                <div><span>Заявок</span><strong>{applicationStats.total}</strong></div>
+                <div><span>На доработку</span><strong>{applicationStats.revision}</strong></div>
+              </div>
+            </section>
 
-        {message && <p>{message}</p>}
-        {error && <p className="error-text">{error}</p>}
+            <div className="summary-grid user-summary-grid">
+              <div className="summary-item"><span>Всего</span><strong>{applicationStats.total}</strong></div>
+              <div className="summary-item"><span>На рассмотрении</span><strong>{applicationStats.pending}</strong></div>
+              <div className="summary-item"><span>Принято</span><strong>{applicationStats.accepted}</strong></div>
+              <div className="summary-item"><span>На доработку</span><strong>{applicationStats.revision}</strong></div>
+            </div>
 
-        {view === 'list' && renderList()}
-        {view === 'create' && renderApplicationForm(submitCreate, 'Отправить заявку')}
-        {view === 'detail' && renderDetail()}
-        {view === 'edit' && renderApplicationForm(submitEdit, 'Сохранить изменения')}
-      </AppLayout>
+            {message && <p className="user-message">{message}</p>}
+            {error && <p className="error-text">{error}</p>}
+
+            {view === 'list' && renderList()}
+            {view === 'create' && renderFormPanel(submitCreate, 'Отправить заявку')}
+            {view === 'detail' && renderDetail()}
+            {view === 'edit' && renderFormPanel(submitEdit, 'Сохранить изменения')}
+          </div>
+        </main>
+      </div>
 
       <Modal
         open={noticeModal.open}

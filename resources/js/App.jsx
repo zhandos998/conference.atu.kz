@@ -109,5 +109,5 @@ export default function App() {
 
   return user.role === 'moderator'
     ? <ModeratorDashboard onLogout={handleLogout} />
-    : <UserDashboard onLogout={handleLogout} />;
+    : <UserDashboard user={user} onLogout={handleLogout} />;
 }
