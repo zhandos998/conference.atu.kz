@@ -1020,6 +1020,29 @@ textarea:focus {
   font-size: 12px;
 }
 
+.article-open-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: #fff;
+  color: var(--atu-blue);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-decoration: none;
+}
+
+.article-open-link:hover {
+  border-color: var(--atu-blue);
+  background: var(--atu-blue-soft);
+  text-decoration: none;
+}
+
 .moderator-row-details {
   position: relative;
 }

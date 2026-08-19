@@ -409,7 +409,7 @@ export default function UserDashboard({ onLogout }) {
             <div><span>Форма участия</span><strong>{selectedApplication.participation_form}</strong></div>
             <div><span>Бронирование гостиницы</span><strong>{selectedApplication.hotel_booking_needed ? 'Да' : 'Нет'}</strong></div>
             <div><span>Дата создания</span><strong>{selectedApplication.created_at ? new Date(selectedApplication.created_at).toLocaleString('ru-RU') : '-'}</strong></div>
-            <div><span>Файл доклада</span><strong>{selectedApplication.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">Открыть файл</a> : 'Файл не загружен'}</strong></div>
+            <div><span>Статья</span><strong>{selectedApplication.file_path ? <a className="article-open-link" href={reportFileUrl} target="_blank" rel="noreferrer">Открыть статью</a> : 'Файл не загружен'}</strong></div>
           </div>
 
           <div className="comment-panel">

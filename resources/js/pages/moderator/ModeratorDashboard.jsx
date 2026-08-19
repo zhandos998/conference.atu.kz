@@ -374,7 +374,7 @@ export default function ModeratorDashboard({ onLogout }) {
                       <div className="moderator-report-cell">
                         <strong>{app.report_title}</strong>
                         <span>{app.direction}</span>
-                        {app.file_path ? <a href={reportFileUrl} target="_blank" rel="noreferrer">Файл доклада</a> : <span>Файл не загружен</span>}
+                        {app.file_path ? <a className="article-open-link" href={reportFileUrl} target="_blank" rel="noreferrer">Открыть статью</a> : <span>Файл не загружен</span>}
                       </div>
                     </td>
                     <td>{receiptPath ? <a href={receiptUrl} target="_blank" rel="noreferrer">Файл чека</a> : 'Нет'}</td>
