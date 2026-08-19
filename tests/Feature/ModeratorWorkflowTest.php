@@ -74,13 +74,17 @@ class ModeratorWorkflowTest extends TestCase
             'new_status' => 'accepted',
         ]);
 
-        Notification::assertSentTo($user, ApplicationStatusChangedNotification::class, function ($notification) use ($application, $user) {
+        Notification::assertSentTo($user, ApplicationStatusChangedNotification::class, function ($notification) use ($user) {
             $mail = $notification->toMail($user);
 
-            return $mail->subject === 'Заявка принята: требуется оплата'
-                && in_array('Следующий шаг: оплатите участие и загрузите чек об оплате в личном кабинете.', $mail->introLines, true)
-                && $mail->actionText === 'Открыть заявку'
-                && $mail->actionUrl === rtrim((string) config('app.frontend_url'), '/') . '/applications/' . $application->id;
+            return $mail->subject === 'Статья принята к публикации'
+                && $mail->greeting === 'Уважаемый(ая) автор!'
+                && in_array('Ваша статья успешно принята к публикации.', $mail->introLines, true)
+                && in_array('Просим произвести оплату организационного взноса в соответствии с требованиями конференции.', $mail->introLines, true)
+                && in_array('После оплаты необходимо загрузить подтверждение платежа на conference@atu.edu.kz', $mail->introLines, true)
+                && $mail->salutation === 'Благодарим за участие!'
+                && $mail->actionText === null
+                && $mail->actionUrl === null;
         });
     }
 
