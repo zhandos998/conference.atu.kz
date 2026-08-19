@@ -50,6 +50,7 @@ class DashboardController extends Controller
         $application->user->notify(new ApplicationStatusChangedNotification(
             $application->status,
             $application->moderator_comment,
+            $application,
         ));
 
         return back()->with('success', 'Анкета успешно обновлена.');

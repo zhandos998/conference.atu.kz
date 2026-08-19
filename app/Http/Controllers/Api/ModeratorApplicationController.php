@@ -107,6 +107,7 @@ class ModeratorApplicationController extends Controller
         $application->user->notify(new ApplicationStatusChangedNotification(
             $application->status,
             $application->moderator_comment,
+            $application,
         ));
 
         return response()->json($application->fresh('user'));

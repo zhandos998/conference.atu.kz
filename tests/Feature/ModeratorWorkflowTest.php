@@ -74,7 +74,14 @@ class ModeratorWorkflowTest extends TestCase
             'new_status' => 'accepted',
         ]);
 
-        Notification::assertSentTo($user, ApplicationStatusChangedNotification::class);
+        Notification::assertSentTo($user, ApplicationStatusChangedNotification::class, function ($notification) use ($application, $user) {
+            $mail = $notification->toMail($user);
+
+            return $mail->subject === 'Заявка принята: требуется оплата'
+                && in_array('Следующий шаг: оплатите участие и загрузите чек об оплате в личном кабинете.', $mail->introLines, true)
+                && $mail->actionText === 'Открыть заявку'
+                && $mail->actionUrl === rtrim((string) config('app.frontend_url'), '/') . '/applications/' . $application->id;
+        });
     }
 
     public function test_moderator_can_view_application_details(): void
