@@ -1,0 +1,387 @@
+Conference ATU server commands
+==============================
+
+Server:
+  172.20.252.171
+
+SSH:
+  ssh zhagparovr@172.20.252.171
+
+Project path on server:
+  /opt/conference.atu.kz
+
+Domain:
+  conference.atu.kz
+
+Git repository:
+  https://github.com/zhandos998/conference.atu.kz.git
+
+Git branch:
+  main
+
+Docker services:
+  backend
+  db
+  phpmyadmin
+
+Local ports on server:
+  App:        127.0.0.1:8094
+  phpMyAdmin: 127.0.0.1:8095
+
+Important:
+  Do not commit .env.
+  Do not write SSH, MySQL, mail, or API passwords into this file.
+  Do not run "docker compose down -v" unless you want to delete database and uploaded files.
+  The latest code has two conference URLs: /republican and /international.
+
+
+Check Docker on server
+----------------------
+  docker --version
+  docker compose version
+  git --version
+  nginx -v
+
+If Docker is not installed on Ubuntu:
+
+  sudo apt update
+  sudo apt install -y ca-certificates curl gnupg git nginx
+  sudo install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  sudo chmod a+r /etc/apt/keyrings/docker.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  sudo apt update
+  sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  sudo systemctl enable --now docker
+  sudo usermod -aG docker zhagparovr
+
+After usermod, reconnect to SSH.
+
+
+First deploy from Git
+---------------------
+Prepare project folder on server:
+
+  ssh zhagparovr@172.20.252.171
+  sudo mkdir -p /opt
+  sudo chown zhagparovr:zhagparovr /opt
+  rm -rf /opt/conference.atu.kz
+  git clone --branch main https://github.com/zhandos998/conference.atu.kz.git /opt/conference.atu.kz
+  cd /opt/conference.atu.kz
+
+
+Create .env on server
+---------------------
+  cd /opt/conference.atu.kz
+  cp -n .env.example .env
+  nano .env
+
+Set real values:
+  APP_NAME="Conference ATU"
+  APP_ENV=production
+  APP_DEBUG=false
+  APP_URL=https://conference.atu.kz
+  FRONTEND_URL=https://conference.atu.kz
+  FRONTEND_BIND=127.0.0.1
+  FRONTEND_PORT=8094
+  PHPMYADMIN_PORT=8095
+  PHPMYADMIN_UPLOAD_LIMIT=64M
+  DB_CONNECTION=mysql
+  DB_HOST=db
+  DB_PORT=3306
+  DB_DATABASE=conference
+  DB_USERNAME=conference
+  DB_PASSWORD=<strong_mysql_password>
+  MYSQL_DATABASE=conference
+  MYSQL_USER=conference
+  MYSQL_PASSWORD=<same_strong_mysql_password>
+  MYSQL_ROOT_PASSWORD=<strong_mysql_root_password>
+  SESSION_DRIVER=database
+  CACHE_STORE=database
+  QUEUE_CONNECTION=database
+  FILESYSTEM_DISK=public
+  MAIL_MAILER=smtp
+  MAIL_HOST=<mail_host>
+  MAIL_PORT=587
+  MAIL_USERNAME=<mail_username>
+  MAIL_PASSWORD=<mail_password>
+  MAIL_SCHEME=tls
+  MAIL_FROM_ADDRESS=conference@atu.edu.kz
+  MAIL_FROM_NAME="${APP_NAME}"
+
+Generate APP_KEY on server:
+
+  APP_KEY="base64:$(openssl rand -base64 32)"
+  sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
+  chmod 600 .env
+
+Check required values:
+
+  grep -E '^(APP_KEY|APP_URL|FRONTEND_PORT|PHPMYADMIN_PORT|MYSQL_DATABASE|MYSQL_USER)=' .env
+
+
+Build and start Docker
+----------------------
+  cd /opt/conference.atu.kz
+  docker compose up -d --build --remove-orphans
+  docker compose ps
+
+The backend container automatically runs:
+  php artisan storage:link --force
+  php artisan migrate --force
+  php artisan config:cache
+  php artisan view:cache
+
+
+Run Laravel setup manually if needed
+------------------------------------
+  cd /opt/conference.atu.kz
+  docker compose exec backend php artisan migrate --force
+  docker compose exec backend php artisan storage:link --force
+  docker compose exec backend php artisan optimize:clear
+  docker compose exec backend php artisan config:cache
+  docker compose exec backend php artisan view:cache
+
+Create or reset moderator password if needed:
+  docker compose exec backend php artisan tinker
+
+Then in tinker:
+  $newPassword = '<new_moderator_password>';
+  $user = App\Models\User::firstOrCreate(['email' => 'moderator@atu.kz'], ['name' => 'Moderator', 'role' => 'moderator', 'email_verified_at' => now()]);
+  $user->forceFill(['password' => Hash::make($newPassword), 'role' => 'moderator', 'email_verified_at' => now()])->save();
+  exit
+
+
+Nginx reverse proxy on server
+-----------------------------
+Create config:
+
+  sudo nano /etc/nginx/sites-available/conference.atu.kz
+
+Paste:
+
+  server {
+      listen 80;
+      listen [::]:80;
+      server_name conference.atu.kz www.conference.atu.kz;
+
+      return 301 https://conference.atu.kz$request_uri;
+  }
+
+  server {
+      listen 443 ssl;
+      listen [::]:443 ssl;
+      server_name conference.atu.kz www.conference.atu.kz;
+
+      ssl_certificate /etc/ssl/atussl/ssl-bundle.crt;
+      ssl_certificate_key /etc/ssl/atussl/atu.key;
+      ssl_prefer_server_ciphers on;
+
+      client_max_body_size 64M;
+
+      access_log /var/log/nginx/conference_access.log;
+      error_log /var/log/nginx/conference_error.log;
+
+      location / {
+          proxy_pass http://127.0.0.1:8094;
+          proxy_http_version 1.1;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          proxy_set_header X-Forwarded-Host $host;
+          proxy_set_header X-Forwarded-Port $server_port;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection "upgrade";
+      }
+  }
+
+Enable:
+
+  sudo ln -sfn /etc/nginx/sites-available/conference.atu.kz /etc/nginx/sites-enabled/conference.atu.kz
+  sudo nginx -t
+  sudo systemctl reload nginx
+
+
+Check containers
+----------------
+  cd /opt/conference.atu.kz
+  docker compose ps
+  docker compose exec backend php artisan about --only=environment
+
+
+Show logs
+---------
+All services:
+  cd /opt/conference.atu.kz
+  docker compose logs -f
+
+Only backend:
+  docker compose logs -f backend
+
+Only MySQL:
+  docker compose logs -f db
+
+Only phpMyAdmin:
+  docker compose logs -f phpmyadmin
+
+
+Restart services
+----------------
+Restart backend:
+  cd /opt/conference.atu.kz
+  docker compose restart backend
+
+Restart all:
+  cd /opt/conference.atu.kz
+  docker compose restart
+
+
+Update project after code changes
+---------------------------------
+On local machine:
+
+  cd C:\github_repositories\conference.atu.kz
+  git status --short
+  git add <changed_files>
+  git commit -m "Update conference app"
+  git push origin main
+
+On server:
+
+  cd /opt/conference.atu.kz
+  git pull --ff-only origin main
+  docker compose up -d --build --remove-orphans
+  docker compose exec backend php artisan migrate --force
+  docker compose exec backend php artisan optimize:clear
+  docker compose exec backend php artisan config:cache
+  docker compose exec backend php artisan view:cache
+
+
+Laravel commands
+----------------
+Open shell in backend container:
+  cd /opt/conference.atu.kz
+  docker compose exec backend bash
+
+Clear cache:
+  docker compose exec backend php artisan optimize:clear
+
+Run migrations:
+  docker compose exec backend php artisan migrate --force
+
+Show routes:
+  docker compose exec backend php artisan route:list
+
+Show Laravel environment:
+  docker compose exec backend php artisan about --only=environment
+
+
+Database
+--------
+Open MySQL CLI:
+  cd /opt/conference.atu.kz
+  docker compose exec db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"'
+
+Backup database on server:
+  cd /opt/conference.atu.kz
+  docker compose exec db sh -c 'mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' > conference-backup-$(date +%F-%H%M).sql
+
+Restore database from backup:
+  cd /opt/conference.atu.kz
+  docker compose exec -T db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' < conference-backup.sql
+
+Copy database backup from server to local machine:
+  scp zhagparovr@172.20.252.171:/opt/conference.atu.kz/conference-backup.sql .
+
+
+Storage files
+-------------
+Uploaded files are stored in Docker volume:
+  backend_storage
+
+Backup uploaded files on server:
+  cd /opt/conference.atu.kz
+  STORAGE_VOLUME="$(docker volume ls --format '{{.Name}}' | grep '_backend_storage$' | head -n 1)"
+  docker run --rm -v "${STORAGE_VOLUME}:/data" -v "$PWD":/backup alpine tar czf /backup/conference-storage-$(date +%F-%H%M).tar.gz -C /data .
+
+Restore uploaded files on server:
+  cd /opt/conference.atu.kz
+  STORAGE_VOLUME="$(docker volume ls --format '{{.Name}}' | grep '_backend_storage$' | head -n 1)"
+  docker run --rm -v "${STORAGE_VOLUME}:/data" -v "$PWD":/backup alpine sh -c 'cd /data && tar xzf /backup/conference-storage.tar.gz'
+
+If the Docker volume name is different, check it with:
+  docker volume ls | grep backend_storage
+
+
+phpMyAdmin
+----------
+phpMyAdmin is bound only to server localhost:
+  http://127.0.0.1:8095
+
+Open phpMyAdmin from local machine through SSH tunnel:
+  ssh -L 8095:127.0.0.1:8095 zhagparovr@172.20.252.171
+
+Then open in browser:
+  http://127.0.0.1:8095
+
+phpMyAdmin login:
+  Server: db
+  Username: conference
+  Password: value from MYSQL_PASSWORD in /opt/conference.atu.kz/.env
+  Database: conference
+
+
+Health checks
+-------------
+Check local app from server:
+  curl -I http://127.0.0.1:8094/
+
+Check public domain:
+  curl -I https://conference.atu.kz/
+
+Check Republican conference page:
+  curl -I https://conference.atu.kz/republican
+
+Check International conference page:
+  curl -I https://conference.atu.kz/international
+
+Check moderator pages:
+  curl -I https://conference.atu.kz/moderator/applications
+  curl -I https://conference.atu.kz/moderator/international/applications
+
+Test before DNS changes:
+  curl -k --resolve conference.atu.kz:443:206.62.55.202 https://conference.atu.kz/
+
+
+Public URLs
+-----------
+Main:
+  https://conference.atu.kz/
+
+Republican conference:
+  https://conference.atu.kz/republican
+
+International conference:
+  https://conference.atu.kz/international
+
+Moderator:
+  https://conference.atu.kz/moderator
+  https://conference.atu.kz/moderator/applications
+  https://conference.atu.kz/moderator/international/applications
+  https://conference.atu.kz/moderator/international/export
+
+
+Stop / start
+------------
+Stop containers without deleting data:
+  cd /opt/conference.atu.kz
+  docker compose down
+
+Start containers:
+  cd /opt/conference.atu.kz
+  docker compose up -d
+
+Danger zone: delete database and storage volumes:
+  cd /opt/conference.atu.kz
+  docker compose down -v
