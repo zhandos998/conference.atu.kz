@@ -599,6 +599,29 @@ export default function UserDashboard({ user, onLogout }) {
     );
   };
 
+  const renderConferenceChoice = () => (
+    <section className="conference-choice-panel" aria-labelledby="conference-choice-title">
+      <div className="conference-choice-copy">
+        <h2 id="conference-choice-title">{t('conference.selectorTitle')}</h2>
+        <p>{t('conference.selectorText')}</p>
+      </div>
+      <div className="conference-choice-options">
+        {conferenceTypes.map((conferenceType) => (
+          <button
+            className={`conference-choice-option ${conferenceType === activeConference ? 'is-active' : ''}`}
+            key={conferenceType}
+            type="button"
+            onClick={() => switchConference(conferenceType)}
+          >
+            <strong>{conferenceShortTitle(conferenceType)}</strong>
+            <span>{conferenceTitle(conferenceType)}</span>
+            <small>{conferenceType === activeConference ? t('conference.selected') : t('conference.choose')}</small>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+
   return (
     <>
       <div className="user-layout">
@@ -644,6 +667,8 @@ export default function UserDashboard({ user, onLogout }) {
 
         <main className="user-main">
           <div className="user-container user-content">
+            {renderConferenceChoice()}
+
             <section className="user-hero">
               <div>
                 <p>{t('user.hero.kicker')}</p>

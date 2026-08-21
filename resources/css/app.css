@@ -836,6 +836,100 @@ textarea:focus {
   padding: 32px 0 48px;
 }
 
+.conference-choice-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.4fr);
+  gap: 18px;
+  align-items: stretch;
+  border: 1px solid #cddcf3;
+  border-radius: 8px;
+  padding: 18px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(39, 79, 147, 0.08);
+}
+
+.conference-choice-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.conference-choice-copy h2 {
+  margin: 0;
+  color: var(--atu-blue-strong);
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.conference-choice-copy p {
+  margin: 7px 0 0;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.conference-choice-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.conference-choice-option {
+  display: grid;
+  min-height: 112px;
+  justify-items: start;
+  border: 2px solid #d6e2f5;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f8fbff;
+  color: var(--atu-blue-strong);
+  text-align: left;
+}
+
+.conference-choice-option:hover {
+  border-color: var(--atu-blue);
+  background: var(--atu-blue-soft);
+}
+
+.conference-choice-option.is-active {
+  border-color: var(--atu-blue);
+  background: var(--atu-blue);
+  color: #fff;
+  box-shadow: 0 14px 30px rgba(39, 79, 147, 0.2);
+}
+
+.conference-choice-option strong {
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.conference-choice-option span {
+  margin-top: 5px;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  opacity: 0.82;
+}
+
+.conference-choice-option small {
+  align-self: end;
+  margin-top: 14px;
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: #fff;
+  color: var(--atu-blue);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.conference-choice-option.is-active small {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
 .user-hero {
   display: flex;
   align-items: center;
@@ -2126,6 +2220,10 @@ td iframe {
     padding: 24px 0 36px;
   }
 
+  .conference-choice-panel {
+    grid-template-columns: 1fr;
+  }
+
   .user-hero,
   .user-panel-head {
     align-items: stretch;
@@ -2288,6 +2386,7 @@ td iframe {
   }
 
   .user-hero,
+  .conference-choice-panel,
   .user-panel-head,
   .user-application-list,
   .payment-notice-panel,
@@ -2308,6 +2407,14 @@ td iframe {
 
   .user-hero h2 {
     font-size: 21px;
+  }
+
+  .conference-choice-options {
+    grid-template-columns: 1fr;
+  }
+
+  .conference-choice-option {
+    min-height: 96px;
   }
 
   .user-hero-stats,
