@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import api from '../../api/client';
 import Modal from '../../components/Modal';
 import {
+  conferenceTypes,
+  getConferenceFromPath,
+  userApplicationPath,
+  userConferenceBase,
+} from '../../conferences';
+import {
   defaultFeeSettings,
   feeCountryGroups,
   feeParticipantCategories,
@@ -70,7 +76,8 @@ const apiOrigin = new URL(apiBaseUrl, window.location.origin).origin;
 const toReportFileUrl = (path) => `${apiOrigin}/storage/${path}`;
 const getUserApplicationIdFromLocation = () => {
   const path = window.location.pathname.replace(/\/+$/, '');
-  const match = path.match(/^\/applications\/(\d+)$/);
+  const match = path.match(/^\/(?:republican|international)\/applications\/(\d+)$/)
+    || path.match(/^\/applications\/(\d+)$/);
 
   return match ? Number(match[1]) : null;
 };
@@ -83,6 +90,7 @@ const viewTitle = {
 
 export default function UserDashboard({ user, onLogout }) {
   const { language, t } = useI18n();
+  const [activeConference, setActiveConference] = useState(getConferenceFromPath);
   const [view, setView] = useState('list');
   const [applications, setApplications] = useState([]);
   const [selectedApplication, setSelectedApplication] = useState(null);
@@ -111,19 +119,21 @@ export default function UserDashboard({ user, onLogout }) {
   const applicationFeeText = (application) => formatFeeAmount(resolveApplicationFee(application, feeSettings), language);
   const participantCategoryText = (value) => t(`fee.category.${feeParticipantCategories.includes(value) ? value : 'participant'}`);
   const countryGroupText = (value) => t(`fee.country.${feeCountryGroups.includes(value) ? value : 'kz'}`);
+  const conferenceTitle = (conferenceType) => t(`conference.${conferenceType}.title`);
+  const conferenceShortTitle = (conferenceType) => t(`conference.${conferenceType}.short`);
 
   const loadApplications = async () => {
-    const { data } = await api.get('/applications');
+    const { data } = await api.get('/applications', { params: { conference: activeConference } });
     setApplications(data);
   };
 
   const loadSubmissionSettings = async () => {
-    const { data } = await api.get('/application-submission-settings');
+    const { data } = await api.get('/application-submission-settings', { params: { conference: activeConference } });
     setSubmissionEnabled(Boolean(data?.enabled));
   };
 
   const loadFeeSettings = async () => {
-    const { data } = await api.get('/application-fee-settings');
+    const { data } = await api.get('/application-fee-settings', { params: { conference: activeConference } });
     setFeeSettings(normalizeFeeSettings(data));
   };
 
@@ -142,7 +152,33 @@ export default function UserDashboard({ user, onLogout }) {
     };
 
     bootstrap();
+  }, [activeConference]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveConference(getConferenceFromPath());
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  const switchConference = (conferenceType) => {
+    if (conferenceType === activeConference) {
+      return;
+    }
+
+    setMessage('');
+    setError('');
+    setPaymentReceipt(null);
+    setSelectedApplication(null);
+    setForm(initialForm);
+    setView('list');
+    setActiveConference(conferenceType);
+    window.history.pushState({}, '', userConferenceBase(conferenceType));
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
 
   const openApplication = async (applicationId) => {
     setMessage('');
@@ -170,7 +206,7 @@ export default function UserDashboard({ user, onLogout }) {
     setView('list');
 
     if (getUserApplicationIdFromLocation()) {
-      window.history.replaceState({}, '', '/');
+      window.history.replaceState({}, '', userConferenceBase(activeConference));
     }
 
     if (successMessage) {
@@ -222,6 +258,7 @@ export default function UserDashboard({ user, onLogout }) {
 
       payload.append(key, key === 'hotel_booking_needed' ? Number(value) : value);
     });
+    payload.append('conference_type', activeConference);
 
     return payload;
   };
@@ -448,7 +485,7 @@ export default function UserDashboard({ user, onLogout }) {
                 {needsPayment(app) && <p className="payment-row-note">{t('user.payment.rowNotice', { amount: applicationFeeText(app) })}</p>}
               </div>
               <div className="user-row-actions">
-                <a className="btn-secondary" href={`/applications/${app.id}`} target="_blank" rel="noreferrer">{t('user.list.openApplication')}</a>
+                <a className="btn-secondary" href={userApplicationPath(activeConference, app.id)} target="_blank" rel="noreferrer">{t('user.list.openApplication')}</a>
               </div>
             </div>
           ))}
@@ -507,6 +544,7 @@ export default function UserDashboard({ user, onLogout }) {
 
           <div className="detail-grid">
             <div><span>{t('user.form.fullName')}</span><strong>{selectedApplication.full_name}</strong></div>
+            <div><span>{t('conference.fieldLabel')}</span><strong>{conferenceTitle(selectedApplication.conference_type || activeConference)}</strong></div>
             <div><span>{t('user.form.organizationPosition')}</span><strong>{selectedApplication.organization_position}</strong></div>
             <div><span>{t('user.form.academicDegree')}</span><strong>{selectedApplication.academic_degree}</strong></div>
             <div><span>{t('user.form.participantCategory')}</span><strong>{participantCategoryText(selectedApplication.participant_category)}</strong></div>
@@ -572,6 +610,18 @@ export default function UserDashboard({ user, onLogout }) {
                 <button className={`user-nav-link ${['list', 'detail'].includes(view) ? 'is-active' : ''}`} type="button" onClick={goToList}>{t('user.nav.dashboard')}</button>
                 <button className={`user-nav-link ${['create', 'edit'].includes(view) ? 'is-active' : ''}`} type="button" onClick={goToCreate} disabled={!submissionEnabled}>{t('user.nav.applications')}</button>
               </nav>
+              <div className="conference-switcher" aria-label={t('conference.switcherLabel')}>
+                {conferenceTypes.map((conferenceType) => (
+                  <button
+                    className={conferenceType === activeConference ? 'is-active' : ''}
+                    key={conferenceType}
+                    type="button"
+                    onClick={() => switchConference(conferenceType)}
+                  >
+                    {conferenceShortTitle(conferenceType)}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="user-topbar-actions">
@@ -588,7 +638,7 @@ export default function UserDashboard({ user, onLogout }) {
 
         <div className="user-page-title">
           <div className="user-container">
-            <h1>{view === 'list' ? t('user.nav.dashboard') : t(viewTitle[view])}</h1>
+            <h1>{conferenceTitle(activeConference)}</h1>
           </div>
         </div>
 
@@ -597,7 +647,7 @@ export default function UserDashboard({ user, onLogout }) {
             <section className="user-hero">
               <div>
                 <p>{t('user.hero.kicker')}</p>
-                <h2>{t('user.hero.title')}</h2>
+                <h2>{conferenceTitle(activeConference)}</h2>
                 <span>{t('user.hero.subtitle')}</span>
               </div>
               <div className="user-hero-stats">

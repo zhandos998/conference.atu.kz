@@ -44,7 +44,8 @@ class ApplicationSubmissionTest extends TestCase
         Sanctum::actingAs($user);
 
         $first = $this->post('/api/applications', $this->payload());
-        $first->assertCreated();
+        $first->assertCreated()
+            ->assertJsonPath('conference_type', Application::CONFERENCE_REPUBLICAN);
 
         $second = $this->post('/api/applications', array_merge($this->payload(), [
             'report_title' => 'Р’С‚РѕСЂРѕР№ РґРѕРєР»Р°Рґ',
@@ -53,6 +54,42 @@ class ApplicationSubmissionTest extends TestCase
         $second->assertCreated();
 
         $this->assertDatabaseCount('applications', 2);
+    }
+
+    public function test_user_can_create_and_filter_applications_by_conference(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'role' => 'user',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $republican = $this->post('/api/applications', array_merge($this->payload(), [
+            'report_title' => 'Republican report',
+            'email' => 'republican@example.com',
+            'conference_type' => Application::CONFERENCE_REPUBLICAN,
+        ]));
+
+        $international = $this->post('/api/applications', array_merge($this->payload(), [
+            'report_title' => 'International report',
+            'email' => 'international@example.com',
+            'conference_type' => Application::CONFERENCE_INTERNATIONAL,
+        ]));
+
+        $republican->assertCreated();
+        $international->assertCreated()
+            ->assertJsonPath('conference_type', Application::CONFERENCE_INTERNATIONAL);
+
+        $this->getJson('/api/applications?conference=' . Application::CONFERENCE_REPUBLICAN)
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.report_title', 'Republican report');
+
+        $this->getJson('/api/applications?conference=' . Application::CONFERENCE_INTERNATIONAL)
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.report_title', 'International report');
     }
 
     public function test_user_sees_only_own_application(): void
@@ -172,6 +209,32 @@ class ApplicationSubmissionTest extends TestCase
         $response->assertOk()->assertJson([
             'enabled' => false,
         ]);
+    }
+
+    public function test_user_reads_submission_settings_by_conference(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'role' => 'user',
+        ]);
+
+        SystemSetting::setBoolean(SystemSetting::applicationSubmissionKey(Application::CONFERENCE_INTERNATIONAL), false);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/application-submission-settings?conference=' . Application::CONFERENCE_REPUBLICAN)
+            ->assertOk()
+            ->assertJson([
+                'conference_type' => Application::CONFERENCE_REPUBLICAN,
+                'enabled' => true,
+            ]);
+
+        $this->getJson('/api/application-submission-settings?conference=' . Application::CONFERENCE_INTERNATIONAL)
+            ->assertOk()
+            ->assertJson([
+                'conference_type' => Application::CONFERENCE_INTERNATIONAL,
+                'enabled' => false,
+            ]);
     }
 
     public function test_user_can_read_fee_settings(): void

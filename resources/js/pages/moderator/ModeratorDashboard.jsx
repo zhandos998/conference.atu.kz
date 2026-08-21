@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import api from '../../api/client';
 import Modal from '../../components/Modal';
 import {
+  conferenceTypes,
+  getConferenceFromPath,
+  moderatorApplicationPath,
+  moderatorPagePath as buildModeratorPagePath,
+} from '../../conferences';
+import {
   defaultFeeSettings,
   feeCountryGroups,
   feeParticipantCategories,
@@ -29,11 +35,6 @@ const apiBaseUrl = import.meta.env.VITE_API_URL || `${window.location.origin}/ap
 const apiOrigin = new URL(apiBaseUrl, window.location.origin).origin;
 const toReceiptUrl = (path) => `${apiOrigin}/storage/${path}`;
 const toReportFileUrl = (path) => `${apiOrigin}/storage/${path}`;
-const moderatorPagePath = {
-  dashboard: '/moderator',
-  applications: '/moderator/applications',
-  export: '/moderator/export',
-};
 const moderatorPageTitle = {
   dashboard: 'moderator.page.dashboard',
   applications: 'moderator.page.applications',
@@ -42,7 +43,7 @@ const moderatorPageTitle = {
 };
 const getModeratorApplicationIdFromLocation = () => {
   const path = window.location.pathname.replace(/\/+$/, '');
-  const match = path.match(/^\/moderator\/applications\/(\d+)$/);
+  const match = path.match(/^\/moderator\/(?:(?:republican|international)\/)?applications\/(\d+)$/);
 
   return match ? Number(match[1]) : null;
 };
@@ -53,11 +54,11 @@ const getModeratorPageFromLocation = () => {
     return 'applicationDetail';
   }
 
-  if (path.endsWith('/moderator/applications') || window.location.hash === '#filters') {
+  if (path.endsWith('/applications') || window.location.hash === '#filters') {
     return 'applications';
   }
 
-  if (path.endsWith('/moderator/export') || window.location.hash === '#export') {
+  if (path.endsWith('/export') || window.location.hash === '#export') {
     return 'export';
   }
 
@@ -66,6 +67,7 @@ const getModeratorPageFromLocation = () => {
 
 export default function ModeratorDashboard({ onLogout }) {
   const { language, t } = useI18n();
+  const [activeConference, setActiveConference] = useState(getConferenceFromPath);
   const [activePage, setActivePage] = useState(getModeratorPageFromLocation);
   const [activeApplicationId, setActiveApplicationId] = useState(getModeratorApplicationIdFromLocation);
   const [status, setStatus] = useState('');
@@ -104,6 +106,8 @@ export default function ModeratorDashboard({ onLogout }) {
   const applicationFeeText = (application) => formatFeeAmount(resolveApplicationFee(application, feeSettings), language);
   const participantCategoryText = (value) => t(`fee.category.${feeParticipantCategories.includes(value) ? value : 'participant'}`);
   const countryGroupText = (value) => t(`fee.country.${feeCountryGroups.includes(value) ? value : 'kz'}`);
+  const conferenceTitle = (conferenceType) => t(`conference.${conferenceType}.title`);
+  const conferenceShortTitle = (conferenceType) => t(`conference.${conferenceType}.short`);
 
   const load = async (
     nextPage = pagination.currentPage,
@@ -113,7 +117,7 @@ export default function ModeratorDashboard({ onLogout }) {
     nextFullNameSearch = fullNameSearch,
     nextReportTitleSearch = reportTitleSearch,
   ) => {
-    const params = { page: nextPage };
+    const params = { page: nextPage, conference: activeConference };
     if (nextStatus) params.status = nextStatus;
     if (nextDirection) params.direction = nextDirection;
     if (nextReceipt) params.receipt = nextReceipt;
@@ -133,12 +137,12 @@ export default function ModeratorDashboard({ onLogout }) {
   };
 
   const loadSubmissionSettings = async () => {
-    const { data } = await api.get('/moderator/application-submission-settings');
+    const { data } = await api.get('/moderator/application-submission-settings', { params: { conference: activeConference } });
     setSubmissionEnabled(Boolean(data?.enabled));
   };
 
   const loadFeeSettings = async () => {
-    const { data } = await api.get('/moderator/application-fee-settings');
+    const { data } = await api.get('/moderator/application-fee-settings', { params: { conference: activeConference } });
     const normalizedFees = normalizeFeeSettings(data);
 
     setFeeSettings(normalizedFees);
@@ -155,10 +159,11 @@ export default function ModeratorDashboard({ onLogout }) {
     };
 
     bootstrap();
-  }, []);
+  }, [activeConference]);
 
   useEffect(() => {
     const handlePopState = () => {
+      setActiveConference(getConferenceFromPath());
       setActivePage(getModeratorPageFromLocation());
       setActiveApplicationId(getModeratorApplicationIdFromLocation());
     };
@@ -189,12 +194,32 @@ export default function ModeratorDashboard({ onLogout }) {
     };
 
     loadApplication();
-  }, [activePage, activeApplicationId]);
+  }, [activePage, activeApplicationId, activeConference]);
 
   const openModeratorPage = (page) => {
     setActivePage(page);
     setActiveApplicationId(null);
-    window.history.pushState({}, '', moderatorPagePath[page]);
+    window.history.pushState({}, '', buildModeratorPagePath(activeConference, page));
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  const switchConference = (conferenceType) => {
+    if (conferenceType === activeConference) {
+      return;
+    }
+
+    const nextPage = activePage === 'applicationDetail' ? 'applications' : activePage;
+
+    setStatus('');
+    setDirection('');
+    setReceipt('');
+    setFullNameSearch('');
+    setReportTitleSearch('');
+    setSelectedApplication(null);
+    setActiveApplicationId(null);
+    setActivePage(nextPage);
+    setActiveConference(conferenceType);
+    window.history.pushState({}, '', buildModeratorPagePath(conferenceType, nextPage));
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
@@ -224,12 +249,15 @@ export default function ModeratorDashboard({ onLogout }) {
 
   const exportExcel = async () => {
     try {
-      const response = await api.get('/moderator/applications-export', { responseType: 'blob' });
+      const response = await api.get('/moderator/applications-export', {
+        params: { conference: activeConference },
+        responseType: 'blob',
+      });
       const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const contentDisposition = response.headers['content-disposition'] || '';
       const matched = contentDisposition.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)/i);
       const backendFileName = matched?.[1] ? decodeURIComponent(matched[1].replace(/\"/g, '').trim()) : '';
-      const fallbackName = `conference_application_${new Date().toISOString().slice(0, 19).replace('T', '-').replace(/:/g, '')}.xlsx`;
+      const fallbackName = `conference_application_${activeConference}_${new Date().toISOString().slice(0, 19).replace('T', '-').replace(/:/g, '')}.xlsx`;
 
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -288,6 +316,7 @@ export default function ModeratorDashboard({ onLogout }) {
     try {
       const { data } = await api.patch('/moderator/application-submission-settings', {
         enabled: nextValue,
+        conference_type: activeConference,
       });
       setSubmissionEnabled(Boolean(data?.enabled));
     } catch (err) {
@@ -320,7 +349,10 @@ export default function ModeratorDashboard({ onLogout }) {
     setFeeSettingsMessage('');
 
     try {
-      const { data } = await api.patch('/moderator/application-fee-settings', normalizeFeeSettings(feeSettingsDraft));
+      const { data } = await api.patch('/moderator/application-fee-settings', {
+        ...normalizeFeeSettings(feeSettingsDraft),
+        conference_type: activeConference,
+      });
       const normalizedFees = normalizeFeeSettings(data);
 
       setFeeSettings(normalizedFees);
@@ -399,7 +431,7 @@ export default function ModeratorDashboard({ onLogout }) {
       <section className="moderator-hero">
         <div>
           <p>{t('moderator.dashboard.heroKicker')}</p>
-          <h2>{t('moderator.dashboard.heroTitle')}</h2>
+          <h2>{conferenceTitle(activeConference)}</h2>
           <span>{t('moderator.dashboard.heroSubtitle')}</span>
         </div>
         <div className="moderator-hero-stats">
@@ -510,7 +542,7 @@ export default function ModeratorDashboard({ onLogout }) {
       <section className="moderator-panel moderator-table-panel">
         <div className="moderator-panel-head">
           <div>
-            <h2>{t('moderator.table.title')}</h2>
+            <h2>{t('moderator.table.title')} · {conferenceShortTitle(activeConference)}</h2>
             <p>{t('moderator.table.pageSummary', {
               current: pagination.currentPage,
               last: pagination.lastPage,
@@ -584,7 +616,7 @@ export default function ModeratorDashboard({ onLogout }) {
                       </div>
                     </td>
                     <td>
-                      <a className="btn-secondary application-open-link" href={`/moderator/applications/${app.id}`} target="_blank" rel="noreferrer">{t('moderator.actions.openApplication')}</a>
+                      <a className="btn-secondary application-open-link" href={moderatorApplicationPath(activeConference, app.id)} target="_blank" rel="noreferrer">{t('moderator.actions.openApplication')}</a>
                     </td>
                   </tr>
                 );
@@ -646,7 +678,7 @@ export default function ModeratorDashboard({ onLogout }) {
             <div>
               <p className="section-kicker">{t('moderator.detail.applicationNumber', { id: selectedApplication.id })}</p>
               <h2>{selectedApplication.report_title}</h2>
-              <p>{formatDateTime(selectedApplication.created_at, language)}</p>
+              <p>{conferenceTitle(selectedApplication.conference_type || activeConference)} · {formatDateTime(selectedApplication.created_at, language)}</p>
             </div>
             <span className={statusClass[selectedApplication.status] || statusClass.pending}>
               {statusText(selectedApplication.status)}
@@ -662,6 +694,7 @@ export default function ModeratorDashboard({ onLogout }) {
           <div className="detail-grid application-detail-grid">
             <div><span>{t('moderator.detail.fullName')}</span><strong>{selectedApplication.full_name}</strong></div>
             <div><span>{t('common.email')}</span><strong>{selectedApplication.email}</strong></div>
+            <div><span>{t('conference.fieldLabel')}</span><strong>{conferenceTitle(selectedApplication.conference_type || activeConference)}</strong></div>
             <div><span>{t('moderator.detail.phone')}</span><strong>{selectedApplication.phone}</strong></div>
             <div><span>{t('moderator.detail.organizationPosition')}</span><strong>{selectedApplication.organization_position}</strong></div>
             <div><span>{t('moderator.detail.academicDegree')}</span><strong>{selectedApplication.academic_degree}</strong></div>
@@ -697,7 +730,7 @@ export default function ModeratorDashboard({ onLogout }) {
       <section className="moderator-hero moderator-export-hero">
         <div>
           <p>{t('moderator.export.kicker')}</p>
-          <h2>{t('moderator.export.title')}</h2>
+          <h2>{conferenceTitle(activeConference)}</h2>
           <span>{t('moderator.export.text')}</span>
         </div>
         <button className="btn-primary btn-primary-light" type="button" onClick={exportExcel}>{t('moderator.export.download')}</button>
@@ -721,7 +754,7 @@ export default function ModeratorDashboard({ onLogout }) {
 
         <div className="moderator-export-grid">
           <div><span>{t('common.format')}</span><strong>.xlsx</strong></div>
-          <div><span>{t('common.source')}</span><strong>{t('moderator.export.applicationsSource')}</strong></div>
+          <div><span>{t('common.source')}</span><strong>{conferenceTitle(activeConference)}</strong></div>
           <div><span>{t('common.access')}</span><strong>{t('moderator.export.moderatorOnly')}</strong></div>
         </div>
       </section>
@@ -745,6 +778,18 @@ export default function ModeratorDashboard({ onLogout }) {
               <button className={`moderator-nav-link ${['applications', 'applicationDetail'].includes(activePage) ? 'is-active' : ''}`} type="button" onClick={() => openModeratorPage('applications')}>{t('moderator.page.applications')}</button>
               <button className={`moderator-nav-link ${activePage === 'export' ? 'is-active' : ''}`} type="button" onClick={() => openModeratorPage('export')}>{t('moderator.page.export')}</button>
             </nav>
+            <div className="conference-switcher moderator-conference-switcher" aria-label={t('conference.switcherLabel')}>
+              {conferenceTypes.map((conferenceType) => (
+                <button
+                  className={conferenceType === activeConference ? 'is-active' : ''}
+                  key={conferenceType}
+                  type="button"
+                  onClick={() => switchConference(conferenceType)}
+                >
+                  {conferenceShortTitle(conferenceType)}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="moderator-sidebar-footer">
@@ -756,7 +801,7 @@ export default function ModeratorDashboard({ onLogout }) {
 
         <div className="moderator-workspace">
           <header className="moderator-topbar">
-            <h1>{t(moderatorPageTitle[activePage])}</h1>
+            <h1>{t(moderatorPageTitle[activePage])} · {conferenceShortTitle(activeConference)}</h1>
           </header>
 
           <main className="moderator-main">

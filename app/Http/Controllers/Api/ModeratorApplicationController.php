@@ -14,35 +14,39 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ModeratorApplicationController extends Controller
 {
-    public function submissionSettings()
+    public function submissionSettings(Request $request)
     {
         $this->authorize('moderate', Application::class);
+        $conferenceType = $this->conferenceFromRequest($request);
 
         return response()->json([
-            'enabled' => $this->isApplicationSubmissionEnabled(),
+            'conference_type' => $conferenceType,
+            'enabled' => $this->isApplicationSubmissionEnabled($conferenceType),
         ]);
     }
 
     public function updateSubmissionSettings(Request $request)
     {
         $this->authorize('moderate', Application::class);
+        $conferenceType = $this->conferenceFromRequest($request);
 
         $validated = $request->validate([
             'enabled' => ['required', 'boolean'],
         ]);
 
-        SystemSetting::setBoolean(SystemSetting::KEY_APPLICATION_SUBMISSION_ENABLED, (bool) $validated['enabled']);
+        SystemSetting::setBoolean(SystemSetting::applicationSubmissionKey($conferenceType), (bool) $validated['enabled']);
 
         return response()->json([
-            'enabled' => $this->isApplicationSubmissionEnabled(),
+            'conference_type' => $conferenceType,
+            'enabled' => $this->isApplicationSubmissionEnabled($conferenceType),
         ]);
     }
 
-    public function feeSettings()
+    public function feeSettings(Request $request)
     {
         $this->authorize('moderate', Application::class);
 
-        return response()->json(SystemSetting::getConferenceFees());
+        return response()->json(SystemSetting::getConferenceFees($this->conferenceFromRequest($request)));
     }
 
     public function updateFeeSettings(Request $request)
@@ -62,9 +66,9 @@ class ModeratorApplicationController extends Controller
             'student.foreign.amount' => ['required', 'numeric', 'min:0', 'max:100000000'],
         ]);
 
-        SystemSetting::setConferenceFees($validated);
+        SystemSetting::setConferenceFees($validated, $this->conferenceFromRequest($request));
 
-        return response()->json(SystemSetting::getConferenceFees());
+        return response()->json(SystemSetting::getConferenceFees($this->conferenceFromRequest($request)));
     }
 
     public function index(Request $request)
@@ -73,6 +77,10 @@ class ModeratorApplicationController extends Controller
 
         $query = Application::query()->with('user')->latest();
         $receipt = (string) $request->query('receipt', '');
+
+        if ($request->filled('conference') || $request->filled('conference_type')) {
+            $query->where('conference_type', $this->conferenceFromRequest($request));
+        }
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
@@ -124,7 +132,7 @@ class ModeratorApplicationController extends Controller
         }
 
         if ($payload['status'] === Application::STATUS_ACCEPTED) {
-            $fee = SystemSetting::conferenceFeeFor($application->participant_category, $application->country_group);
+            $fee = SystemSetting::conferenceFeeFor($application->participant_category, $application->country_group, $application->conference_type);
             $payload['payment_fee_amount'] = $fee['amount'];
             $payload['payment_fee_currency'] = $fee['currency'];
         } else {
@@ -151,13 +159,21 @@ class ModeratorApplicationController extends Controller
         return response()->json($application->fresh('user'));
     }
 
-    public function export()
+    public function export(Request $request)
     {
         $this->authorize('moderate', Application::class);
+        $conferenceType = $this->conferenceFromRequest($request);
 
-        $filename = 'conference_application_' . now()->format('Y-m-d-His') . '.xlsx';
+        $filename = 'conference_application_' . $conferenceType . '_' . now()->format('Y-m-d-His') . '.xlsx';
 
-        return Excel::download(new ApplicationsExport(), $filename);
+        return Excel::download(new ApplicationsExport($conferenceType), $filename);
+    }
+
+    private function conferenceFromRequest(Request $request): string
+    {
+        return Application::normalizeConferenceType(
+            $request->input('conference_type', $request->query('conference')),
+        );
     }
 
     private function normalizeUtf8(string $value): string
@@ -169,8 +185,8 @@ class ModeratorApplicationController extends Controller
         return mb_convert_encoding($value, 'UTF-8', 'Windows-1251,CP1251,ISO-8859-1,UTF-8');
     }
 
-    private function isApplicationSubmissionEnabled(): bool
+    private function isApplicationSubmissionEnabled(?string $conferenceType = null): bool
     {
-        return SystemSetting::getBoolean(SystemSetting::KEY_APPLICATION_SUBMISSION_ENABLED, true);
+        return SystemSetting::getBoolean(SystemSetting::applicationSubmissionKey($conferenceType), true);
     }
 }

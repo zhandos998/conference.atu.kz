@@ -18,6 +18,7 @@ class UpdateApplicationRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'conference_type' => ['nullable', Rule::in(Application::CONFERENCE_TYPES)],
             'full_name' => ['required', 'string', 'max:255'],
             'organization_position' => ['required', 'string', 'max:255'],
             'academic_degree' => ['required', 'string', 'max:255'],

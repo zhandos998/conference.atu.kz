@@ -40,7 +40,7 @@ class DashboardController extends Controller
         $oldStatus = $application->status;
 
         if ($data['status'] === Application::STATUS_ACCEPTED) {
-            $fee = SystemSetting::conferenceFeeFor($application->participant_category, $application->country_group);
+            $fee = SystemSetting::conferenceFeeFor($application->participant_category, $application->country_group, $application->conference_type);
             $data['payment_fee_amount'] = $fee['amount'];
             $data['payment_fee_currency'] = $fee['currency'];
         } else {

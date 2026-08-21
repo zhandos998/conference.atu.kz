@@ -686,6 +686,35 @@ textarea:focus {
   content: "";
 }
 
+.conference-switcher {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(39, 79, 147, 0.08);
+}
+
+.conference-switcher button {
+  min-height: 30px;
+  border-radius: 5px;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--atu-blue);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.conference-switcher button:hover,
+.conference-switcher button.is-active {
+  background: var(--atu-blue);
+  color: #fff;
+}
+
 .user-topbar-actions {
   display: flex;
   align-items: center;
@@ -1151,6 +1180,18 @@ textarea:focus {
 .moderator-nav-link.is-active {
   background: var(--atu-blue-soft);
   color: var(--atu-blue-strong);
+}
+
+.moderator-conference-switcher {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin: 0 8px;
+}
+
+.moderator-conference-switcher button {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
 }
 
 .moderator-sidebar-footer {
@@ -2068,6 +2109,11 @@ td iframe {
     min-height: 40px;
   }
 
+  .conference-switcher {
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+
   .user-topbar-actions {
     justify-content: space-between;
   }
@@ -2227,6 +2273,14 @@ td iframe {
 
   .user-nav {
     gap: 16px;
+  }
+
+  .conference-switcher {
+    width: 100%;
+  }
+
+  .conference-switcher button {
+    flex: 1 1 130px;
   }
 
   .user-account-menu summary {

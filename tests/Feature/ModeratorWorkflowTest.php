@@ -169,6 +169,26 @@ class ModeratorWorkflowTest extends TestCase
             ]);
     }
 
+    public function test_moderator_can_toggle_submission_settings_by_conference(): void
+    {
+        $moderator = User::factory()->create([
+            'role' => 'moderator',
+            'email_verified_at' => now(),
+        ]);
+
+        Sanctum::actingAs($moderator);
+
+        $this->patchJson('/api/moderator/application-submission-settings?conference=' . Application::CONFERENCE_INTERNATIONAL, [
+            'enabled' => false,
+        ])->assertOk()->assertJson([
+            'conference_type' => Application::CONFERENCE_INTERNATIONAL,
+            'enabled' => false,
+        ]);
+
+        $this->assertTrue(SystemSetting::getBoolean(SystemSetting::applicationSubmissionKey(Application::CONFERENCE_REPUBLICAN), true));
+        $this->assertFalse(SystemSetting::getBoolean(SystemSetting::applicationSubmissionKey(Application::CONFERENCE_INTERNATIONAL), true));
+    }
+
     public function test_moderator_can_update_fee_settings(): void
     {
         $moderator = User::factory()->create([
@@ -209,6 +229,111 @@ class ModeratorWorkflowTest extends TestCase
         $this->assertSame('KZT', $fees['participant']['kz']['currency']);
         $this->assertSame(25.0, $fees['student']['foreign']['amount']);
         $this->assertSame('USD', $fees['student']['foreign']['currency']);
+    }
+
+    public function test_moderator_can_update_fee_settings_by_conference(): void
+    {
+        $moderator = User::factory()->create([
+            'role' => 'moderator',
+            'email_verified_at' => now(),
+        ]);
+
+        Sanctum::actingAs($moderator);
+
+        $this->patchJson('/api/moderator/application-fee-settings?conference=' . Application::CONFERENCE_INTERNATIONAL, [
+            'participant' => [
+                'kz' => ['amount' => 9000],
+                'foreign' => ['amount' => 60],
+            ],
+            'student' => [
+                'kz' => ['amount' => 5000],
+                'foreign' => ['amount' => 35],
+            ],
+        ])->assertOk()
+            ->assertJsonPath('participant.kz.amount', 9000)
+            ->assertJsonPath('participant.foreign.amount', 60);
+
+        $republicanFees = SystemSetting::getConferenceFees(Application::CONFERENCE_REPUBLICAN);
+        $internationalFees = SystemSetting::getConferenceFees(Application::CONFERENCE_INTERNATIONAL);
+
+        $this->assertSame(5000.0, $republicanFees['participant']['kz']['amount']);
+        $this->assertSame(9000.0, $internationalFees['participant']['kz']['amount']);
+        $this->assertSame(35.0, $internationalFees['student']['foreign']['amount']);
+    }
+
+    public function test_moderator_can_filter_applications_by_conference(): void
+    {
+        $moderator = User::factory()->create([
+            'role' => 'moderator',
+            'email_verified_at' => now(),
+        ]);
+
+        $user = User::factory()->create([
+            'role' => 'user',
+            'email_verified_at' => now(),
+        ]);
+
+        $republican = Application::create(array_merge($this->applicationPayload($user), [
+            'conference_type' => Application::CONFERENCE_REPUBLICAN,
+            'email' => 'republican-filter@example.com',
+        ]));
+
+        $international = Application::create(array_merge($this->applicationPayload($user), [
+            'conference_type' => Application::CONFERENCE_INTERNATIONAL,
+            'email' => 'international-filter@example.com',
+        ]));
+
+        Sanctum::actingAs($moderator);
+
+        $this->getJson('/api/moderator/applications?conference=' . Application::CONFERENCE_REPUBLICAN)
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $republican->id);
+
+        $this->getJson('/api/moderator/applications?conference=' . Application::CONFERENCE_INTERNATIONAL)
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $international->id);
+    }
+
+    public function test_moderator_accepts_international_application_with_international_fee(): void
+    {
+        Notification::fake();
+
+        $moderator = User::factory()->create([
+            'role' => 'moderator',
+            'email_verified_at' => now(),
+        ]);
+
+        $user = User::factory()->create([
+            'role' => 'user',
+            'email_verified_at' => now(),
+        ]);
+
+        SystemSetting::setConferenceFees([
+            'participant' => [
+                'kz' => ['amount' => 9000],
+                'foreign' => ['amount' => 60],
+            ],
+            'student' => [
+                'kz' => ['amount' => 5000],
+                'foreign' => ['amount' => 35],
+            ],
+        ], Application::CONFERENCE_INTERNATIONAL);
+
+        $application = Application::create(array_merge($this->applicationPayload($user), [
+            'conference_type' => Application::CONFERENCE_INTERNATIONAL,
+        ]));
+
+        Sanctum::actingAs($moderator);
+
+        $this->patchJson('/api/moderator/applications/' . $application->id . '/status', [
+            'status' => Application::STATUS_ACCEPTED,
+            'moderator_comment' => 'Accepted',
+        ])->assertOk();
+
+        $this->assertSame('9000.00', $application->fresh()->payment_fee_amount);
+        $this->assertSame('KZT', $application->fresh()->payment_fee_currency);
     }
 
     public function test_moderator_can_filter_applications_by_receipt_presence(): void

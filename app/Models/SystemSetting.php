@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class SystemSetting extends Model
 {
     public const KEY_APPLICATION_SUBMISSION_ENABLED = 'application_submission_enabled';
+    public const KEY_APPLICATION_SUBMISSION_ENABLED_INTERNATIONAL = 'application_submission_enabled_international';
     public const KEY_CONFERENCE_FEES = 'conference_fees';
+    public const KEY_CONFERENCE_FEES_INTERNATIONAL = 'conference_fees_international';
 
     public const DEFAULT_CONFERENCE_FEES = [
         'participant' => [
@@ -46,10 +48,24 @@ class SystemSetting extends Model
         );
     }
 
-    public static function getConferenceFees(): array
+    public static function applicationSubmissionKey(?string $conferenceType): string
+    {
+        return Application::normalizeConferenceType($conferenceType) === Application::CONFERENCE_INTERNATIONAL
+            ? self::KEY_APPLICATION_SUBMISSION_ENABLED_INTERNATIONAL
+            : self::KEY_APPLICATION_SUBMISSION_ENABLED;
+    }
+
+    public static function conferenceFeesKey(?string $conferenceType): string
+    {
+        return Application::normalizeConferenceType($conferenceType) === Application::CONFERENCE_INTERNATIONAL
+            ? self::KEY_CONFERENCE_FEES_INTERNATIONAL
+            : self::KEY_CONFERENCE_FEES;
+    }
+
+    public static function getConferenceFees(?string $conferenceType = null): array
     {
         $value = static::query()
-            ->where('key', self::KEY_CONFERENCE_FEES)
+            ->where('key', self::conferenceFeesKey($conferenceType))
             ->value('value');
 
         $decoded = is_string($value) ? json_decode($value, true) : null;
@@ -57,17 +73,17 @@ class SystemSetting extends Model
         return self::normalizeConferenceFees(is_array($decoded) ? $decoded : []);
     }
 
-    public static function setConferenceFees(array $fees): void
+    public static function setConferenceFees(array $fees, ?string $conferenceType = null): void
     {
         static::query()->updateOrCreate(
-            ['key' => self::KEY_CONFERENCE_FEES],
+            ['key' => self::conferenceFeesKey($conferenceType)],
             ['value' => json_encode(self::normalizeConferenceFees($fees), JSON_UNESCAPED_UNICODE)],
         );
     }
 
-    public static function conferenceFeeFor(?string $category, ?string $countryGroup): array
+    public static function conferenceFeeFor(?string $category, ?string $countryGroup, ?string $conferenceType = null): array
     {
-        $fees = self::getConferenceFees();
+        $fees = self::getConferenceFees($conferenceType);
         $categoryKey = array_key_exists((string) $category, $fees) ? (string) $category : 'participant';
         $countryGroupKey = array_key_exists((string) $countryGroup, $fees[$categoryKey]) ? (string) $countryGroup : 'kz';
 
@@ -83,7 +99,7 @@ class SystemSetting extends Model
             ];
         }
 
-        return self::conferenceFeeFor($application->participant_category, $application->country_group);
+        return self::conferenceFeeFor($application->participant_category, $application->country_group, $application->conference_type);
     }
 
     public static function formatConferenceFee(array $fee): string

@@ -15,6 +15,12 @@ class Application extends Model
     public const STATUS_ACCEPTED = 'accepted';
     public const STATUS_REVISION = 'revision';
     public const STATUS_REJECTED = 'rejected';
+    public const CONFERENCE_REPUBLICAN = 'republican';
+    public const CONFERENCE_INTERNATIONAL = 'international';
+    public const CONFERENCE_TYPES = [
+        self::CONFERENCE_REPUBLICAN,
+        self::CONFERENCE_INTERNATIONAL,
+    ];
     public const PARTICIPANT_CATEGORY_PARTICIPANT = 'participant';
     public const PARTICIPANT_CATEGORY_STUDENT = 'student';
     public const COUNTRY_GROUP_KZ = 'kz';
@@ -22,6 +28,7 @@ class Application extends Model
 
     protected $fillable = [
         'user_id',
+        'conference_type',
         'full_name',
         'organization_position',
         'academic_degree',
@@ -58,5 +65,12 @@ class Application extends Model
     public function statusLogs(): HasMany
     {
         return $this->hasMany(ApplicationStatusLog::class);
+    }
+
+    public static function normalizeConferenceType(?string $conferenceType): string
+    {
+        return in_array($conferenceType, self::CONFERENCE_TYPES, true)
+            ? $conferenceType
+            : self::CONFERENCE_REPUBLICAN;
     }
 }

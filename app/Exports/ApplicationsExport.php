@@ -12,6 +12,10 @@ class ApplicationsExport implements FromArray, ShouldAutoSize, WithEvents
 {
     private array $hyperlinks = [];
 
+    public function __construct(
+        private readonly ?string $conferenceType = null,
+    ) {}
+
     public function array(): array
     {
         $rows = [];
@@ -44,9 +48,13 @@ class ApplicationsExport implements FromArray, ShouldAutoSize, WithEvents
             'Статус',
         ];
 
-        $applications = Application::query()
-            ->orderBy('id')
-            ->get();
+        $query = Application::query()->orderBy('id');
+
+        if ($this->conferenceType) {
+            $query->where('conference_type', Application::normalizeConferenceType($this->conferenceType));
+        }
+
+        $applications = $query->get();
 
         foreach ($applications as $index => $app) {
             $excelRow = $index + 2;

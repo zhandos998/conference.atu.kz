@@ -14,28 +14,37 @@ use Illuminate\Support\Facades\Storage;
 
 class ApplicationController extends Controller
 {
-    public function submissionSettings()
+    public function submissionSettings(Request $request)
     {
+        $conferenceType = $this->conferenceFromRequest($request);
+
         return response()->json([
-            'enabled' => $this->isApplicationSubmissionEnabled(),
+            'conference_type' => $conferenceType,
+            'enabled' => $this->isApplicationSubmissionEnabled($conferenceType),
         ]);
     }
 
-    public function feeSettings()
+    public function feeSettings(Request $request)
     {
-        return response()->json(SystemSetting::getConferenceFees());
+        return response()->json(SystemSetting::getConferenceFees($this->conferenceFromRequest($request)));
     }
 
     public function index(Request $request)
     {
-        return response()->json(
-            $request->user()->applications()->latest()->get()
-        );
+        $query = $request->user()->applications()->latest();
+
+        if ($request->filled('conference') || $request->filled('conference_type')) {
+            $query->where('conference_type', $this->conferenceFromRequest($request));
+        }
+
+        return response()->json($query->get());
     }
 
     public function store(StoreApplicationRequest $request)
     {
-        if (! $this->isApplicationSubmissionEnabled()) {
+        $conferenceType = $this->conferenceFromRequest($request);
+
+        if (! $this->isApplicationSubmissionEnabled($conferenceType)) {
             return response()->json([
                 'message' => 'Прием заявок временно отключен менеджером.',
             ], 403);
@@ -47,6 +56,7 @@ class ApplicationController extends Controller
         }
 
         $data = $request->validated();
+        $data['conference_type'] = $conferenceType;
         $data['participant_category'] = $data['participant_category'] ?? Application::PARTICIPANT_CATEGORY_PARTICIPANT;
         $data['country_group'] = $data['country_group'] ?? Application::COUNTRY_GROUP_KZ;
 
@@ -72,13 +82,16 @@ class ApplicationController extends Controller
     {
         $this->authorize('update', $application);
 
-        if (! $this->isApplicationSubmissionEnabled()) {
+        $conferenceType = Application::normalizeConferenceType($request->input('conference_type', $application->conference_type));
+
+        if (! $this->isApplicationSubmissionEnabled($conferenceType)) {
             return response()->json([
                 'message' => 'Повторная отправка заявок временно отключена менеджером.',
             ], 403);
         }
 
         $data = $request->validated();
+        $data['conference_type'] = $conferenceType;
         $data['participant_category'] = $data['participant_category'] ?? Application::PARTICIPANT_CATEGORY_PARTICIPANT;
         $data['country_group'] = $data['country_group'] ?? Application::COUNTRY_GROUP_KZ;
 
@@ -164,8 +177,15 @@ class ApplicationController extends Controller
         ]);
     }
 
-    private function isApplicationSubmissionEnabled(): bool
+    private function conferenceFromRequest(Request $request): string
     {
-        return SystemSetting::getBoolean(SystemSetting::KEY_APPLICATION_SUBMISSION_ENABLED, true);
+        return Application::normalizeConferenceType(
+            $request->input('conference_type', $request->query('conference')),
+        );
+    }
+
+    private function isApplicationSubmissionEnabled(?string $conferenceType = null): bool
+    {
+        return SystemSetting::getBoolean(SystemSetting::applicationSubmissionKey($conferenceType), true);
     }
 }
